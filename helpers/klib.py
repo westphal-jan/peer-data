@@ -77,8 +77,8 @@ def process_click_args(ctx: click.Context, cmd_args: dict) -> int:
         if not torch.cuda.is_available():
             ctx.fail("GPUs were requested but machine has no CUDA!")
         os.environ["CUDA_VISIBLE_DEVICES"] = cmd_args.gpus
-        torch.cudnn.enabled = True
-        torch.cudnn.benchmark = True
+        # torch.cudnn.enabled = True
+        # torch.cudnn.benchmark = True
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
     cmd_args.gpus = num_gpus
