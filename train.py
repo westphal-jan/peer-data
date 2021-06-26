@@ -43,7 +43,7 @@ def main(ctx, **cmd_args):
                          deterministic=manual_seed_specified)
 
     trainer.fit(model, dm)
-    # trainer.test(datamodule=dm)
+    trainer.test(datamodule=dm)
 
 
 if __name__ == '__main__':
