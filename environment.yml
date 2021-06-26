@@ -1,0 +1,15 @@
+name: paper-judge
+channels:
+  - defaults
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.8
+  - pytorch
+  - torchtext
+  - wandb
+  - pytorch-lightning
+  - click
+  - autopep8
+  - sentence-transformers
+  - typing
