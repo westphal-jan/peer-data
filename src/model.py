@@ -42,9 +42,11 @@ class TransformerClassifier(pl.LightningModule):
 
     def _step(self, step_type: str, batch):
         data, labels = batch
+        print(data, label)
         logits = self.forward(data).squeeze(1)
         loss = self.loss(logits, labels.type_as(logits))
         self.log(f'{step_type}/loss', loss)
+        print(logits)
         self._log_metrics(step_type, sigmoid(logits), labels)
         return loss
 
