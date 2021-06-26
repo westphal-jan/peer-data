@@ -38,15 +38,14 @@ class TransformerClassifier(pl.LightningModule):
     def _log_metrics(self, step_type: str, predictions: Tensor, labels: Tensor):
         metrics = self.metrics[step_type]
         for name, metric in metrics.items():
-            self.log(f"{step_type}/{name}", metric(predictions, labels))
+            self.log(f"{step_type}/{name}",
+                     metric(predictions.cpu(), labels.cpu()))
 
     def _step(self, step_type: str, batch):
         data, labels = batch
-        print(data, labels, self.metrics)
         logits = self.forward(data).squeeze(1)
         loss = self.loss(logits, labels.type_as(logits))
         self.log(f'{step_type}/loss', loss)
-        print(logits)
         self._log_metrics(step_type, sigmoid(logits), labels)
         return loss
 
