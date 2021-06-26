@@ -73,6 +73,8 @@ def process_click_args(ctx: click.Context, cmd_args: dict) -> int:
         if not re.compile("^([0-9]|[1-9][0-9])(,([0-9]|[1-9][0-9]))*$").fullmatch(cmd_args.gpus):
             ctx.fail(
                 f"invalid GPU string specified: \"{cmd_args.gpus}\". Expected format is a comma-seperated list of integers corresponding to GPU indices (execute nvidia-smi for more info)")
+
+        # IMPORTANT: For this to work, the torch import needs to happen afterwards
         os.environ["CUDA_VISIBLE_DEVICES"] = cmd_args.gpus
         import torch
         if not torch.cuda.is_available():

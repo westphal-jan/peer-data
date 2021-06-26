@@ -3,6 +3,7 @@ from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.dataset import Dataset, random_split
 import glob
 import json
+import torch
 
 
 class BasicDataModule(pl.LightningDataModule):
@@ -50,4 +51,4 @@ class PaperDataset(Dataset):
 
         abstract = paper_json["review"]["abstract"]
         accepted = paper_json["review"]["accepted"]
-        return abstract, int(accepted)
+        return abstract, torch.tensor(int(accepted))
