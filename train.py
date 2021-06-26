@@ -3,6 +3,7 @@ import click
 import pytorch_lightning as pl
 from src.dataloading import BasicDataModule
 from src.model import TransformerClassifier
+import os
 
 WANDB_PROJECT = "paper-classification"
 WANDB_ENTITY = "paper-judging"
@@ -23,6 +24,7 @@ def main(ctx, **cmd_args):
     manual_seed_specified = cmd_args.seed is not None
     cmd_args.seed  = pl.seed_everything(workers=True, seed=cmd_args.seed)
     print(cmd_args)
+    os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
     dm = BasicDataModule(
         data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size)
