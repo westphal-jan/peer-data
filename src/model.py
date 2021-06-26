@@ -31,7 +31,8 @@ class TransformerClassifier(pl.LightningModule):
             test=shared_metrics.copy())
 
     def forward(self, x):
-        embeddings = self.transformer.encode(x, convert_to_tensor=True)
+        embeddings = self.transformer.encode(
+            x, convert_to_tensor=True, device=self.device)
         # print(embeddings)
         return self.classifier(embeddings)
 

@@ -36,8 +36,8 @@ class BasicDataModule(pl.LightningDataModule):
     def val_dataloader(self) -> DataLoader:
         return DataLoader(self.val_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
 
-    # def test_dataloader(self) -> DataLoader:
-    #     return DataLoader(self.test_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
+    def test_dataloader(self) -> DataLoader:
+        return DataLoader(self.test_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
 
 
 class PaperDataset(Dataset):
