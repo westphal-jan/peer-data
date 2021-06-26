@@ -11,5 +11,8 @@ dependencies:
   - pytorch-lightning
   - click
   - autopep8
-  - sentence-transformers
   - typing
+  - pip: 
+    - sentence-transformers
+
+
