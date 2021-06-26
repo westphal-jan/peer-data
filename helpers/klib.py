@@ -82,5 +82,10 @@ def process_click_args(ctx: click.Context, cmd_args: dict) -> int:
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
     cmd_args.gpus = num_gpus
-
+    if cmd_args.gpus > 0:
+        cmd_args.accelerator = 'ddp'
+        # experienced "deadlock" bug with the standard nccl backend
+        # os.environ["PL_TORCH_DISTRIBUTED_BACKEND"] = "gloo"
+    else:
+        cmd_args.accelerator = None
     return cmd_args

@@ -36,6 +36,7 @@ def main(ctx, **cmd_args):
     trainer = pl.Trainer(max_epochs=cmd_args.epochs,
                          progress_bar_refresh_rate=1,
                          gpus=cmd_args.gpus,
+                         accelerator=cmd_args.accelerator,
                          logger=wandb_logger,
                          benchmark=not manual_seed_specified,
                          deterministic=manual_seed_specified)
