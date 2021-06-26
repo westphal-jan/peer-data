@@ -13,12 +13,17 @@ class TransformerClassifier(pl.LightningModule):
         self.save_hyperparameters()
         self.transformer = SentenceTransformer('paraphrase-TinyBERT-L6-v2')
         print(self.transformer)
+        # self.classifier = nn.Sequential(
+        #     nn.Linear(768, 334),
+        #     nn.ReLU(),
+        #     nn.Linear(334, 100),
+        #     nn.ReLU(),
+        #     nn.Linear(100, 1),
+        # )
         self.classifier = nn.Sequential(
             nn.Linear(768, 334),
             nn.ReLU(),
-            nn.Linear(334, 100),
-            nn.ReLU(),
-            nn.Linear(100, 1),
+            nn.Linear(334, 1)
         )
         self.loss = nn.BCEWithLogitsLoss()
 
