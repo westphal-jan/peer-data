@@ -27,7 +27,6 @@ import os
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.utilities.distributed import rank_zero_only
 import wandb
-import torch
 import click
 import re
 
@@ -74,9 +73,10 @@ def process_click_args(ctx: click.Context, cmd_args: dict) -> int:
         if not re.compile("^([0-9]|[1-9][0-9])(,([0-9]|[1-9][0-9]))*$").fullmatch(cmd_args.gpus):
             ctx.fail(
                 f"invalid GPU string specified: \"{cmd_args.gpus}\". Expected format is a comma-seperated list of integers corresponding to GPU indices (execute nvidia-smi for more info)")
+        os.environ["CUDA_VISIBLE_DEVICES"] = cmd_args.gpus
+        import torch
         if not torch.cuda.is_available():
             ctx.fail("GPUs were requested but machine has no CUDA!")
-        os.environ["CUDA_VISIBLE_DEVICES"] = cmd_args.gpus
         # torch.cudnn.enabled = True
         # torch.cudnn.benchmark = True
     else:

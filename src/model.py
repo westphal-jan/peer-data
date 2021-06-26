@@ -3,7 +3,6 @@ from torch import Tensor
 from helpers.klib import kdict
 import pytorch_lightning as pl
 from torch import optim, nn, sigmoid
-import torch
 from torchmetrics import Accuracy, F1
 from sentence_transformers import SentenceTransformer
 

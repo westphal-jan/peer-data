@@ -1,13 +1,9 @@
 from helpers.klib import CustomWandbLogger, process_click_args
 import click
-import pytorch_lightning as pl
-from src.dataloading import BasicDataModule
-from src.model import TransformerClassifier
 import os
 
 WANDB_PROJECT = "paper-classification"
 WANDB_ENTITY = "paper-judging"
-
 
 @click.command()
 @click.pass_context
@@ -21,6 +17,11 @@ WANDB_ENTITY = "paper-judging"
 @click.option('--datasets', '-d', help="Datasets to train on", required=True, multiple=True, type=click.Path(exists=True, writable=True, file_okay=False))
 def main(ctx, **cmd_args):
     cmd_args = process_click_args(ctx, cmd_args)
+
+    import pytorch_lightning as pl
+    from src.dataloading import BasicDataModule
+    from src.model import TransformerClassifier
+
     manual_seed_specified = cmd_args.seed is not None
     cmd_args.seed  = pl.seed_everything(workers=True, seed=cmd_args.seed)
     print(cmd_args)
