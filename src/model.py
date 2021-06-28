@@ -1,9 +1,8 @@
 
 from torch import Tensor
-from helpers.klib import kdict
+from klib import kdict
 import pytorch_lightning as pl
 from torch import optim, nn, sigmoid
-import torch
 from torchmetrics import Accuracy, F1
 from sentence_transformers import SentenceTransformer
 
@@ -13,13 +12,12 @@ class TransformerClassifier(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.transformer = SentenceTransformer('paraphrase-TinyBERT-L6-v2')
-        print(self.transformer)
+        # print(self.transformer)
+
         self.classifier = nn.Sequential(
             nn.Linear(768, 334),
             nn.ReLU(),
-            nn.Linear(334, 100),
-            nn.ReLU(),
-            nn.Linear(100, 1),
+            nn.Linear(334, 1)
         )
         self.loss = nn.BCEWithLogitsLoss()
 
@@ -31,14 +29,16 @@ class TransformerClassifier(pl.LightningModule):
             test=shared_metrics.copy())
 
     def forward(self, x):
-        embeddings = self.transformer.encode(x, convert_to_tensor=True)
+        embeddings = self.transformer.encode(
+            x, convert_to_tensor=True, device=self.device)
         # print(embeddings)
         return self.classifier(embeddings)
 
     def _log_metrics(self, step_type: str, predictions: Tensor, labels: Tensor):
         metrics = self.metrics[step_type]
         for name, metric in metrics.items():
-            self.log(f"{step_type}/{name}", metric(predictions, labels))
+            self.log(f"{step_type}/{name}",
+                     metric(predictions.cpu(), labels.cpu()))
 
     def _step(self, step_type: str, batch):
         data, labels = batch

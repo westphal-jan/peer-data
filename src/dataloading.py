@@ -1,10 +1,9 @@
 import pytorch_lightning as pl
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.dataset import Dataset, random_split
-from torchvision import transforms, datasets
-from torch.utils.data import ConcatDataset
 import glob
 import json
+import torch
 
 
 class BasicDataModule(pl.LightningDataModule):
@@ -26,9 +25,6 @@ class BasicDataModule(pl.LightningDataModule):
             f"Perform train/val/test split: train {train_len}, val {val_len}, test {test_len}")
         self.train_set, self.val_set, self.test_set = random_split(complete_data,
                                                                    [train_len, val_len, test_len])
-        pass
-        # if stage == "fit":
-        #     print("Training with classes", self.train_set.classes)
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.train_set, batch_size=self.batch_size, shuffle=True, num_workers=self.workers, pin_memory=True)
@@ -36,8 +32,8 @@ class BasicDataModule(pl.LightningDataModule):
     def val_dataloader(self) -> DataLoader:
         return DataLoader(self.val_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
 
-    # def test_dataloader(self) -> DataLoader:
-    #     return DataLoader(self.test_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
+    def test_dataloader(self) -> DataLoader:
+        return DataLoader(self.test_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
 
 
 class PaperDataset(Dataset):
@@ -55,4 +51,4 @@ class PaperDataset(Dataset):
 
         abstract = paper_json["review"]["abstract"]
         accepted = paper_json["review"]["accepted"]
-        return abstract, int(accepted)
+        return abstract, torch.tensor(int(accepted))
