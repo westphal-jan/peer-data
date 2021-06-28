@@ -22,59 +22,62 @@ for filepath in filepaths:
     with open(filepath, "r") as f:
         submission = json.loads(f.read())
         data.append(submission)
+    # break
 
 example = data[0]
 print(example["id"])
 print(example["review"].keys())
 print(example["pdf"]["metadata"].keys())
 
-def analyze_text_sections(sections: List[str]):
-    num_words = []
-    num_sentences = []
-    vocab = set()
-    for section in sections:
-        words = [w for w in section.split() if w]
-        num_words.append(len(words))
-        vocab.update(words)
-        sentences = [s for s in section.split(".") if s]
-        num_sentences.append(len(sentences))
-    print("Avg #Words", np.average(num_words))
-    print("Avg #Sentences", np.average(num_sentences))
-    print("Vocab Size:", len(vocab))
-
 def normalize(sections: List[str]):
     porter = PorterStemmer()
 
     num_words = []
     num_sentences = []
-    all_tokens = set()
     all_words = set()
     for i, section in tqdm(enumerate(sections)):
         sentences = sent_tokenize(section)
         words = word_tokenize(section)
-        tokens = [word for word in words if word.isalpha()]
-        tokens = [word.lower() for word in tokens]    
-        tokens = [word for word in tokens if not word in stopwords.words("english")]
-        tokens = [porter.stem(word) for word in tokens]
-
         num_words.append(len(words))
         all_words.update(words)
-        all_tokens.update(tokens)
         num_sentences.append(len(sentences))
     
+    tokens = [word for word in all_words if word.isalnum()]
+    tokens = [word.lower() for word in tokens]    
+    tokens = [word for word in tokens if not word in stopwords.words("english")]
+    tokens = [porter.stem(word) for word in tokens]
+    all_tokens = set(tokens)
+
     print("#Words:", len(all_words))
     print("#Normalized:", len(all_tokens))
     print("Avg words:", np.average(num_words))
     print("Avg sentences:", np.average(num_sentences))
+    return num_words, num_sentences
 
 abstracts = []
 for submission in data:
     abstract = submission["review"]["abstract"]
     abstracts.append(abstract)
 
-# analyze_text_sections(abstracts)
-print("Abstracts:")
-normalize(abstracts)
+print("Abstracts:", len(abstracts))
+num_words, num_sentences = normalize(abstracts)
+
+# n_bins = 30
+# plt.figure()
+# plt.hist(num_words, weights=np.ones(len(data)) / len(data), bins=n_bins)
+# plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
+# plt.title(f"Number of words in abstracts")
+# plt.xlabel("Number of words")
+# plt.ylabel("Occurrences")
+# plt.savefig(f"abstract_words.png", dpi=300)
+# 
+# fig = plt.figure()
+# plt.hist(num_sentences, weights=np.ones(len(data)) / len(data), bins=n_bins)
+# plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
+# plt.title("Number of sentences in abstract")
+# plt.xlabel("Number of sentences")
+# plt.ylabel("Occurrences")
+# plt.savefig("abstract_sentences.png", dpi=300)
 
 valid_sections = []
 invalid_sections = []
@@ -113,9 +116,8 @@ for submission_sections in valid_sections:
         submission_text += " " + s["text"]
     submission_texts.append(submission_text)
 
-
-print("Sections:")
+print("Sections:", len(sections))
 normalize(sections)
 
-print("Submission:")
+print("Submission:", len(submission_texts))
 normalize(submission_texts)
