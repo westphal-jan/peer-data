@@ -1,6 +1,6 @@
 
 from torch import Tensor
-from helpers.klib import kdict
+from klib import kdict
 import pytorch_lightning as pl
 from torch import optim, nn, sigmoid
 from torchmetrics import Accuracy, F1
