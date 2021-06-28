@@ -1,5 +1,6 @@
 # peer-data
 ## Setup
+To get the submodule do `git submodule update --init --recursive`
 To create the conda environment with the required packages, run `conda env create -f environment.yml`.
 
 For server without sudo: you need to install git-lfs from binary. (For powerpc, we need to use different binary and hope it works)
