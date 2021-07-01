@@ -1,5 +1,6 @@
 
 from torch import Tensor
+from torchmetrics.classification.stat_scores import StatScores
 from klib import kdict
 import pytorch_lightning as pl
 from torch import optim, nn, sigmoid
@@ -12,6 +13,7 @@ class TransformerClassifier(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.transformer = SentenceTransformer('paraphrase-TinyBERT-L6-v2')
+        self.transformer.max_seq_length = 512
         # print(self.transformer)
 
         self.classifier = nn.Sequential(
@@ -27,6 +29,8 @@ class TransformerClassifier(pl.LightningModule):
             train=shared_metrics.copy(),
             val=shared_metrics.copy(),
             test=shared_metrics.copy())
+
+        self.val_confusion = StatScores(num_classes=num_classes)
 
     def forward(self, x):
         embeddings = self.transformer.encode(
@@ -46,6 +50,8 @@ class TransformerClassifier(pl.LightningModule):
         loss = self.loss(logits, labels.type_as(logits))
         self.log(f'{step_type}/loss', loss)
         self._log_metrics(step_type, sigmoid(logits), labels)
+        if step_type == 'val':
+            self.val_confusion(sigmoid(logits), labels)
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -53,9 +59,13 @@ class TransformerClassifier(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         return self._step("val", batch)
+    def validation_epoch_end(self, outputs) -> None:
+        print(self.val_confusion.compute())
+        return super().validation_epoch_end(outputs)
 
     def test_step(self, batch, batch_idx):
         return self._step("test", batch)
 
     def configure_optimizers(self):
+
         return optim.Adam(self.parameters(), lr=self.hparams.lr)

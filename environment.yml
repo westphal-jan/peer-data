@@ -7,7 +7,6 @@ dependencies:
   - python=3.8
   - pytorch
   - torchtext
-  - click
   - autopep8
   - typing
   - pip
@@ -15,5 +14,7 @@ dependencies:
     - sentence-transformers
     - wandb
     - pytorch-lightning
+    - click
+
 
 
