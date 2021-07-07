@@ -76,6 +76,7 @@ class TransformerClassifier(pl.LightningModule):
         return self._step("val", batch)
     def validation_epoch_end(self, outputs) -> None:
         print(self.val_confusion.compute())
+        self.val_confusion.reset()
         return super().validation_epoch_end(outputs)
 
     def test_step(self, batch, batch_idx):
