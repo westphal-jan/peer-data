@@ -1,4 +1,5 @@
 
+from pytorch_lightning.utilities.distributed import rank_zero_only
 from sentence_transformers.util import batch_to_device
 from torch import Tensor
 from torchmetrics.classification.stat_scores import StatScores
@@ -74,6 +75,8 @@ class TransformerClassifier(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         return self._step("val", batch)
+    
+    @rank_zero_only
     def validation_epoch_end(self, outputs) -> None:
         print(self.val_confusion.compute())
         self.val_confusion.reset()
