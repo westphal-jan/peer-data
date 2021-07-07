@@ -39,8 +39,8 @@ def main(ctx, **cmd_args):
     dm = BasicDataModule(
         data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size)
     model = TransformerClassifier()
-    wandb_logger = CustomWandbLogger(
-        project=WANDB_PROJECT, entity=WANDB_ENTITY, job_type='train', save_dir=cmd_args.results_dir)
+    wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=WANDB_PROJECT,
+                                     entity=WANDB_ENTITY, job_type='train', save_dir=cmd_args.results_dir)
     checkpoint_callback = ModelCheckpoint(
         dirpath=cmd_args.results_dir, save_last=True, every_n_val_epochs=1)
     # Initialize a trainer
