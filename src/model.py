@@ -35,6 +35,11 @@ class TransformerClassifier(pl.LightningModule):
             test=shared_metrics.copy())
 
         self.val_confusion = StatScores(num_classes=num_classes)
+        print(self.device)
+
+    def on_train_start(self, trainer, pl_module):
+        self.transformer.to(self.device)
+        print('train start', self.device)
 
     def forward(self, x):
         features = self.transformer.tokenize(x)
