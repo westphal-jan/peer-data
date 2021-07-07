@@ -36,7 +36,7 @@ class TransformerClassifier(pl.LightningModule):
 
         self.val_confusion = StatScores(num_classes=num_classes)
 
-    def setup(self, stage):
+    # def setup(self, stage):
         # self.transformer = self.transformer.to(self.device)
         # print('train start', self.device)
 
