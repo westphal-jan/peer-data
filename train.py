@@ -19,7 +19,7 @@ WANDB_ENTITY = "paper-judging"
 @click.option('--workers', '-w', help="Number of workers", default=4, type=int)
 @click.option('--epochs', '-e', help="Number of epochs to train", default=10, type=int)
 @click.option('--batch-size', '-b', help="Batch size per GPU", default=8, type=int)
-@click.option('--offline', help="Disbale wandb online syncing", is_flag=True)
+@click.option('--offline', help="Disable wandb online syncing", is_flag=True)
 @click.option('--seed', help="Specify seed", type=int, default=None)
 @click.option('--gpus', '-g', type=int_sequence, cls=UnlimitedNargsOption, help="Specify the GPU indices to use. If `-1`, try to use all available GPUs. If omitted, use the CPU.")
 @click.option('--datasets', '-d', help="Datasets to train on", required=True, multiple=True, type=click.Path(exists=True, writable=True, file_okay=False))
