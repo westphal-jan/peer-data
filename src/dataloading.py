@@ -28,7 +28,7 @@ class BasicDataModule(pl.LightningDataModule):
                                                                    [train_len, val_len, test_len])
 
     def train_dataloader(self) -> DataLoader:
-        return DataLoader(self.train_set, batch_size=self.batch_size, shuffle=True, num_workers=self.workers, pin_memory=True, sampler=ImbalancedDatasetSampler(self.train_set))
+        return DataLoader(self.train_set, batch_size=self.batch_size, shuffle=True, num_workers=self.workers, pin_memory=True, sampler=ImbalancedDatasetSampler(self.train_set, callback_get_label=label_callback))
 
     def val_dataloader(self) -> DataLoader:
         return DataLoader(self.val_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
@@ -36,6 +36,15 @@ class BasicDataModule(pl.LightningDataModule):
     def test_dataloader(self) -> DataLoader:
         return DataLoader(self.test_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
 
+
+def label_callback(dataset):
+    labels = []
+    for file_path in dataset._file_paths:
+        with open(file_path) as f:
+            paper_json = json.load(f)
+            accepted = paper_json["review"]["accepted"]
+            labels.append(torch.tensor(int(accepted)))
+    return labels
 
 class PaperDataset(Dataset):
     def __init__(self, file_paths) -> None:
