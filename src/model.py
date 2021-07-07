@@ -37,13 +37,13 @@ class TransformerClassifier(pl.LightningModule):
         self.val_confusion = StatScores(num_classes=num_classes)
 
     def setup(self, stage):
-        self.transformer = self.transformer.to(self.device)
-        print('train start', self.device)
+        # self.transformer = self.transformer.to(self.device)
+        # print('train start', self.device)
 
     def forward(self, x):
-        print('forward', self.device)
-        self.transformer = self.transformer.to(self.device)
-        features = self.transformer.tokenize(x)
+        print('forward', self.device, x.device)
+        # self.transformer = self.transformer.to(self.device)
+        features = self.transformer.tokenize(x).to(self.device)
         embeddings = self.transformer(features)['sentence_embedding']
         # print(embeddings['sentence_embedding'], embeddings['sentence_embedding'].shape, embeddings['cls_token_embeddings'], embeddings['cls_token_embeddings'].shape)
         # embeddings = self.transformer.encode(
