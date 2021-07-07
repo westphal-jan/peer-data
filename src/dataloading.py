@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
+from torch.utils import data
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data.dataset import Dataset, random_split
+from torch.utils.data.dataset import Dataset, Subset, random_split
 import glob
 import json
 import torch
@@ -37,14 +38,6 @@ class BasicDataModule(pl.LightningDataModule):
         return DataLoader(self.test_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
 
 
-def label_callback(dataset):
-    labels = []
-    for file_path in dataset._file_paths:
-        with open(file_path) as f:
-            paper_json = json.load(f)
-            accepted = paper_json["review"]["accepted"]
-            labels.append(torch.tensor(int(accepted)))
-    return labels
 
 class PaperDataset(Dataset):
     def __init__(self, file_paths) -> None:
@@ -62,3 +55,15 @@ class PaperDataset(Dataset):
         abstract = paper_json["review"]["abstract"]
         accepted = paper_json["review"]["accepted"]
         return abstract, torch.tensor(int(accepted))
+
+def label_callback(dataset: Subset[PaperDataset]):
+    labels = []
+    indices = dataset.indices
+
+    for i, file_path in enumerate(dataset.dataset._file_paths):
+        if i in indices:
+            with open(file_path) as f:
+                paper_json = json.load(f)
+                accepted = paper_json["review"]["accepted"]
+                labels.append(torch.tensor(int(accepted)))
+    return labels
