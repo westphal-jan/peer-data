@@ -1,4 +1,5 @@
 
+from sentence_transformers.util import batch_to_device
 from torch import Tensor
 from torchmetrics.classification.stat_scores import StatScores
 from klib import kdict
@@ -43,7 +44,8 @@ class TransformerClassifier(pl.LightningModule):
     def forward(self, x):
         print('forward', self.device)
         # self.transformer = self.transformer.to(self.device)
-        features = self.transformer.tokenize(x).to(self.device)
+        features = self.transformer.tokenize(x)
+        features = batch_to_device(features)
         embeddings = self.transformer(features)['sentence_embedding']
         # print(embeddings['sentence_embedding'], embeddings['sentence_embedding'].shape, embeddings['cls_token_embeddings'], embeddings['cls_token_embeddings'].shape)
         # embeddings = self.transformer.encode(
