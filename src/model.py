@@ -5,13 +5,17 @@ from klib import kdict
 import pytorch_lightning as pl
 from torch import optim, nn, sigmoid
 from torchmetrics import Accuracy, F1
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, models
 
 
 class TransformerClassifier(pl.LightningModule):
     def __init__(self, lr=0.001, num_classes=1) -> None:
         super().__init__()
         self.save_hyperparameters()
+        # transformer_backbone = models.Transformer('paraphrase-TinyBERT-L6-v2')
+        # pooling_model = models.Pooling(transformer_backbone.get_word_embedding_dimension())
+        # dense_model = models.Dense(in_features=pooling_model.get_sentence_embedding_dimension(), out_features=256, activation_function=nn.Tanh())
+
         self.transformer = SentenceTransformer('paraphrase-TinyBERT-L6-v2')
         self.transformer.max_seq_length = 512
         # print(self.transformer)
@@ -33,9 +37,13 @@ class TransformerClassifier(pl.LightningModule):
         self.val_confusion = StatScores(num_classes=num_classes)
 
     def forward(self, x):
-        embeddings = self.transformer.encode(
-            x, convert_to_tensor=True, device=self.device)
+        features = self.transformer.tokenize(x)
+        embeddings = self.transformer(features)['sentence_embedding']
+        # print(embeddings['sentence_embedding'], embeddings['sentence_embedding'].shape, embeddings['cls_token_embeddings'], embeddings['cls_token_embeddings'].shape)
+        # embeddings = self.transformer.encode(
+        #     x, convert_to_tensor=True, device=self.device)
         # print(embeddings)
+
         return self.classifier(embeddings)
 
     def _log_metrics(self, step_type: str, predictions: Tensor, labels: Tensor):

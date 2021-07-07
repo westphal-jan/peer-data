@@ -28,8 +28,8 @@ def main(ctx, **cmd_args):
     cmd_args = process_click_args(ctx, cmd_args)
     if cmd_args.use_wandb:
         print("Downloading pkl from wandb")
-        model_file = wandb.restore(
-            "paper-classification/122bvd7r/checkpoints/epoch=1999-step=73999.ckpt", run_path=f"paper-judging/paper-classification/{cmd_args.use_wandb}")
+        model_file = wandb.restore(cmd_args.checkpoint or "network-snapshot",
+                                   run_path=f"paper-judging/paper-classification/{cmd_args.use_wandb}")
         cmd_args.checkpoint = model_file.name
     cmd_args.seed = pl.seed_everything(workers=True, seed=cmd_args.seed)
     print(cmd_args)

@@ -2,6 +2,7 @@ data
 .vscode
 wandb
 *.ckpt
+results
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
