@@ -76,7 +76,6 @@ class TransformerClassifier(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         return self._step("val", batch)
     
-    @rank_zero_only
     def validation_epoch_end(self, outputs) -> None:
         print(self.val_confusion.compute())
         self.val_confusion.reset()
