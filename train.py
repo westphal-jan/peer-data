@@ -51,7 +51,8 @@ def main(ctx, **cmd_args):
                          logger=wandb_logger,
                          callbacks=[checkpoint_callback],
                          benchmark=not manual_seed_specified,
-                         deterministic=manual_seed_specified)
+                         deterministic=manual_seed_specified,
+                         replace_sampler_ddp=False)
 
     trainer.fit(model, dm)
     push_file_to_wandb(f"{str(cmd_args.results_dir)}/*.ckpt")
