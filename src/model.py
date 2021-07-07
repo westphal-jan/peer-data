@@ -42,7 +42,6 @@ class TransformerClassifier(pl.LightningModule):
         # print('train start', self.device)
 
     def forward(self, x):
-        print('forward', self.device)
         # self.transformer = self.transformer.to(self.device)
         features = self.transformer.tokenize(x)
         features = batch_to_device(features, self.device)
