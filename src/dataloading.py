@@ -8,12 +8,13 @@ import torch
 from catalyst.data.sampler import BalanceClassSampler, DistributedSamplerWrapper
 
 class BasicDataModule(pl.LightningDataModule):
-    def __init__(self, data_dirs: str, batch_size: int, workers: int, fast_debug: bool = False):
+    def __init__(self, data_dirs: str, batch_size: int, workers: int, ddp: bool = False, fast_debug: bool = False):
         super().__init__()
         self.data_dirs = data_dirs
         self.batch_size = batch_size
         self.workers = workers
         self.fast_debug = fast_debug
+        self.ddp = ddp
 
     def setup(self, stage):
         self._file_paths = glob.glob(f"{self.data_dirs[0]}/*.json")
@@ -32,8 +33,9 @@ class BasicDataModule(pl.LightningDataModule):
         # print(len(labels), labels)
         sampler = BalanceClassSampler(
             labels=label_callback(self.train_set), mode='upsampling')
-        ddp_sampler = DistributedSamplerWrapper(sampler)
-        return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.workers, sampler=ddp_sampler, pin_memory=True)
+        if self.ddp:
+            sampler = DistributedSamplerWrapper(sampler)
+        return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.workers, sampler=sampler, pin_memory=True)
 
     def val_dataloader(self) -> DataLoader:
         return DataLoader(self.val_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)

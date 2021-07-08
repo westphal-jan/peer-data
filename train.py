@@ -73,7 +73,7 @@ def main(ctx, **cmd_args):
 
     os.makedirs(cmd_args.results_dir, exist_ok=True)
     dm = BasicDataModule(
-        data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size)
+        data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size, ddp=cmd_args.accelerator == "ddp")
     model = TransformerClassifier()
 
     load_dotenv()

@@ -79,8 +79,8 @@ class TransformerClassifier(pl.LightningModule):
             nn.ReLU(),
             nn.Linear(334, 1)
         )
-        # self.loss = nn.BCEWithLogitsLoss()
-        self.loss = F1Loss()
+        self.loss = nn.BCEWithLogitsLoss()
+        # self.loss = F1Loss()
 
         shared_metrics = kdict(accuracy=Accuracy(num_classes=num_classes),
                                f1=F1(num_classes=num_classes))
@@ -100,6 +100,7 @@ class TransformerClassifier(pl.LightningModule):
         features = self.transformer.tokenize(x)
         features = batch_to_device(features, self.device)
         embeddings = self.transformer(features)['sentence_embedding']
+        embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
         # print(embeddings['sentence_embedding'], embeddings['sentence_embedding'].shape, embeddings['cls_token_embeddings'], embeddings['cls_token_embeddings'].shape)
         # embeddings = self.transformer.encode(
         #     x, convert_to_tensor=True, device=self.device)
