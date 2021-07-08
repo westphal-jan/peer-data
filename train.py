@@ -47,7 +47,19 @@ def start_wandb_logging(cfg, model, project):
         wandb.init(project=project, entity=WANDB_ENTITY,
                    name=cfg.run_name)
         wandb.config.update(cfg)
-        wandb.watch(model, log="all")
+        wandb.watch(model, log="all", log_freq=200)
+
+
+def get_out_dir_prefix(results_dir: Path, run_name: str) -> str:
+    prefix = ""
+    if os.path.isdir(results_dir / run_name):
+        associated_run_dirs = [x for x in os.listdir(results_dir) if os.path.isdir(
+            os.path.join(results_dir, x) and run_name in x)]
+        prev_run_ids = [re.match(r'^\d+', x) for x in associated_run_dirs]
+        prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
+        cur_run_id = max(prev_run_ids, default=-1) + 1
+        prefix = f"{cur_run_id}-"
+    return prefix
 
 
 @click.command()
@@ -67,31 +79,31 @@ def main(ctx, **cmd_args):
 
     manual_seed_specified = cmd_args.seed is not None
     cmd_args.seed = pl.seed_everything(workers=True, seed=cmd_args.seed)
-
-    # unique out dir name
-    prev_run_dirs = []
-    if os.path.isdir(cmd_args.results_dir):
-        prev_run_dirs = [x for x in os.listdir(cmd_args.results_dir) if os.path.isdir(os.path.join(cmd_args.results_dir, x))]
-    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
-    prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
-    cur_run_id = max(prev_run_ids, default=-1) + 1
-    cmd_args.results_dir = cmd_args.results_dir / (str(cur_run_id) + "-" + cmd_args.run_name)
-
-    print(cmd_args)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
-    os.makedirs(cmd_args.results_dir, exist_ok=True)
-    dm = BasicDataModule(
-        data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size, ddp=cmd_args.accelerator == "ddp")
     model = TransformerClassifier()
-
     load_dotenv()
     if rank_zero_only.rank == 0:
         start_wandb_logging(cmd_args, model, WANDB_PROJECT)
+        uniquify_prefix = get_out_dir_prefix(
+            
+            
+            cmd_args.results_dir, cmd_args.run_name)
+        cmd_args.results_dir = cmd_args.results_dir / \
+            \
+            \
+            (uniquify_prefix + cmd_args.run_name)
+        assert not os.path.exists(cmd_args.results_dir)
+        os.makedirs(cmd_args.results_dir, exist_ok=True)
+        print(cmd_args)
+
+    dm = BasicDataModule(
+        data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size, ddp=cmd_args.accelerator == "ddp")
+
     wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=WANDB_PROJECT, experiment=wandb.run,
                                      entity=WANDB_ENTITY, job_type='train', log_model=False)
     checkpoint_callback = ModelCheckpoint(
-        dirpath=cmd_args.results_dir, save_last=True, every_n_val_epochs=1, filename="klast.ckpt")
+        dirpath=cmd_args.results_dir, every_n_val_epochs=1, filename="model-snaphot-latest")
     # Initialize a trainer
     trainer = pl.Trainer(max_epochs=cmd_args.epochs,
                          progress_bar_refresh_rate=1,
@@ -107,7 +119,7 @@ def main(ctx, **cmd_args):
 
     trainer.fit(model, dm)
     if rank_zero_only.rank == 0:
-        push_file_to_wandb(f"{str(cmd_args.results_dir)}/*last.ckpt")
+        push_file_to_wandb(f"{str(cmd_args.results_dir)}/model-snaphot-latest.ckpt")
     trainer.test(model=model, datamodule=dm, ckpt_path=None)
 
 
