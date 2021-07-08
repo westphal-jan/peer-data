@@ -83,7 +83,7 @@ def main(ctx, **cmd_args):
     wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=WANDB_PROJECT, experiment=wandb.run,
                                      entity=WANDB_ENTITY, job_type='train', log_model=False)
     checkpoint_callback = ModelCheckpoint(
-        dirpath=cmd_args.results_dir, save_last=True, every_n_val_epochs=1)
+        dirpath=cmd_args.results_dir, save_last=True, every_n_val_epochs=1, filename="klast.ckpt")
     # Initialize a trainer
     trainer = pl.Trainer(max_epochs=cmd_args.epochs,
                          progress_bar_refresh_rate=1,
@@ -99,11 +99,9 @@ def main(ctx, **cmd_args):
 
     trainer.fit(model, dm)
     if rank_zero_only.rank == 0:
-        push_file_to_wandb(f"{str(cmd_args.results_dir)}/last.ckpt")
+        push_file_to_wandb(f"{str(cmd_args.results_dir)}/*last.ckpt")
     trainer.test(model=model, datamodule=dm, ckpt_path=None)
 
 
 if __name__ == '__main__':
-    # Needed against multiprocessing error in Colab
-    __spec__ = None
     main()

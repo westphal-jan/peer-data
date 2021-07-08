@@ -1,11 +1,11 @@
 import pytorch_lightning as pl
 from torch.utils import data
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data.dataset import Dataset, Subset, random_split
+from torch.utils.data.dataset import Dataset,  random_split
 import glob
 import json
 import torch
-from catalyst.data.sampler import BalanceClassSampler, DistributedSamplerWrapper
+from catalyst.data.sampler import DistributedSamplerWrapper
 import numpy as np
 class BasicDataModule(pl.LightningDataModule):
     def __init__(self, data_dirs: str, batch_size: int, workers: int, ddp: bool = False, fast_debug: bool = False):
@@ -29,13 +29,15 @@ class BasicDataModule(pl.LightningDataModule):
                                                                    [train_len, val_len, test_len])
 
     def train_dataloader(self) -> DataLoader:
+
         labels = [ label for abstract, label in self.train_set]
+
+        # Sanity check
         for i, (text, label) in enumerate(self.train_set):
             if not label == labels[i]:
                 print(label, labels[i])
-        # print(len(labels), labels)
-        # sampler = BalanceClassSampler(
-        #     labels=label_callback(self.train_set))
+
+        # Do oversampling of minority class
         number_rejected, number_accepted = np.bincount(labels)
         print("Accepted:", number_accepted, "Rejected:", number_rejected)
 
@@ -53,6 +55,7 @@ class BasicDataModule(pl.LightningDataModule):
             f"Oversampling minority class ({minority_class}) with ratio: (Rejected) {class_weights[0]}:{class_weights[1]} (Accepted)")
         sampler = data.WeightedRandomSampler(
             weights=sample_weights, num_samples=len(sample_weights))
+
         if self.ddp:
             sampler = DistributedSamplerWrapper(sampler)
         return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.workers, sampler=sampler, pin_memory=True)
@@ -83,14 +86,3 @@ class PaperDataset(Dataset):
     def __getitem__(self, index):
         return self.papers[index]['abstract'], torch.tensor(self.papers[index]['accepted'])
 
-def label_callback(dataset: Subset[PaperDataset]):
-    labels = []
-    indices = dataset.indices
-
-    for i, file_path in enumerate(dataset.dataset._file_paths):
-        if i in indices:
-            with open(file_path) as f:
-                paper_json = json.load(f)
-                accepted = paper_json["review"]["accepted"]
-                labels.append(int(accepted))
-    return labels
