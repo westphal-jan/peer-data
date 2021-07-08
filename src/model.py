@@ -190,7 +190,7 @@ class TransformerClassifier(pl.LightningModule):
         metrics = self.metrics[step_type]
         for name, metric in metrics.items():
             self.log(f"{step_type}/{name}",
-                     metric(predictions.cpu(), labels.cpu()))
+                     metric(predictions, labels))
 
     def _step(self, step_type: str, batch):
         data, labels = batch
