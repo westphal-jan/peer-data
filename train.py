@@ -97,7 +97,7 @@ def main(ctx, **cmd_args):
 
     trainer.fit(model, dm)
     if rank_zero_only.rank == 0:
-        push_file_to_wandb(f"{str(cmd_args.results_dir)}/*.ckpt")
+        push_file_to_wandb(f"{str(cmd_args.results_dir)}/last.ckpt")
     trainer.test(model=model, datamodule=dm, ckpt_path=None)
 
 
