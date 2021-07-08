@@ -1,53 +1,48 @@
-
+from sentence_transformers.util import batch_to_device
 from torch import Tensor
 from torchmetrics.classification.stat_scores import StatScores
-from klib import kdict
 import pytorch_lightning as pl
-from torch import optim, nn, sigmoid
+from torch import nn, sigmoid
 from torchmetrics import Accuracy, F1
-from sentence_transformers import SentenceTransformer, models
-
-
+from sentence_transformers import SentenceTransformer
+import transformers
+from copy import deepcopy
 class TransformerClassifier(pl.LightningModule):
-    def __init__(self, lr=0.001, num_classes=1) -> None:
+    def __init__(self, lr=2e-5, num_classes=1) -> None:
         super().__init__()
         self.save_hyperparameters()
-        # transformer_backbone = models.Transformer('paraphrase-TinyBERT-L6-v2')
-        # pooling_model = models.Pooling(transformer_backbone.get_word_embedding_dimension())
-        # dense_model = models.Dense(in_features=pooling_model.get_sentence_embedding_dimension(), out_features=256, activation_function=nn.Tanh())
-
+   
         self.transformer = SentenceTransformer('paraphrase-TinyBERT-L6-v2')
         self.transformer.max_seq_length = 512
         # print(self.transformer)
 
-        self.classifier = nn.Sequential(
-            nn.Linear(768, 334),
-            nn.ReLU(),
-            nn.Linear(334, 1)
-        )
-        self.loss = nn.BCEWithLogitsLoss()
+        # self.classifier = nn.Sequential(
+        #     nn.Linear(768, 334),
+        #     nn.ReLU(),
+        #     nn.Linear(334, 1)
+        # )
+        self.classifier = nn.Linear(768, 1)
 
-        shared_metrics = kdict(accuracy=Accuracy(num_classes=num_classes),
-                               f1=F1(num_classes=num_classes))
-        self.metrics = kdict(
-            train=shared_metrics.copy(),
-            val=shared_metrics.copy(),
-            test=shared_metrics.copy())
+        self.loss = nn.BCEWithLogitsLoss()
+        # self.loss = F1Loss()
+
+        shared_metrics = nn.ModuleDict(dict(accuracy=Accuracy(num_classes=num_classes),
+                                            f1=F1(num_classes=num_classes)))
+        self.metrics = nn.ModuleDict(dict(_train=deepcopy(shared_metrics), # the `train` and `training` keywords cause an error with nn.ModuleDict
+                                          val=deepcopy(shared_metrics),
+                                          test=deepcopy(shared_metrics)))
 
         self.val_confusion = StatScores(num_classes=num_classes)
+        self.class_balance_check = []
 
-    def setup(self, stage):
-        self.transformer = self.transformer.to(self.device)
-        print('train start', self.device)
 
     def forward(self, x):
-        self.transformer = self.transformer.to(self.device)
         features = self.transformer.tokenize(x)
+        features = batch_to_device(features, self.device)
         embeddings = self.transformer(features)['sentence_embedding']
-        # print(embeddings['sentence_embedding'], embeddings['sentence_embedding'].shape, embeddings['cls_token_embeddings'], embeddings['cls_token_embeddings'].shape)
+        # embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
         # embeddings = self.transformer.encode(
         #     x, convert_to_tensor=True, device=self.device)
-        # print(embeddings)
 
         return self.classifier(embeddings)
 
@@ -55,30 +50,49 @@ class TransformerClassifier(pl.LightningModule):
         metrics = self.metrics[step_type]
         for name, metric in metrics.items():
             self.log(f"{step_type}/{name}",
-                     metric(predictions.cpu(), labels.cpu()))
+                     metric(predictions, labels))
 
     def _step(self, step_type: str, batch):
         data, labels = batch
         logits = self.forward(data).squeeze(1)
         loss = self.loss(logits, labels.type_as(logits))
         self.log(f'{step_type}/loss', loss)
+        self.log(f'{step_type}/logits', logits.mean())
         self._log_metrics(step_type, sigmoid(logits), labels)
+
         if step_type == 'val':
             self.val_confusion(sigmoid(logits), labels)
+        if step_type == '_train':
+            self.class_balance_check.extend(labels)
         return loss
 
     def training_step(self, batch, batch_idx):
-        return self._step("train", batch)
+        return self._step("_train", batch)
 
     def validation_step(self, batch, batch_idx):
         return self._step("val", batch)
+
     def validation_epoch_end(self, outputs) -> None:
+        # if self.global_rank == 0:
         print(self.val_confusion.compute())
+        self.val_confusion.reset()
+
+        print(len([val for val in self.class_balance_check if val == 0]),
+              len([val for val in self.class_balance_check if val == 1]))
+        self.class_balance_check = []
         return super().validation_epoch_end(outputs)
 
     def test_step(self, batch, batch_idx):
         return self._step("test", batch)
 
     def configure_optimizers(self):
-
-        return optim.Adam(self.parameters(), lr=self.hparams.lr)
+        # From SentenceTransformer.fit function
+        param_optimizer = list(self.named_parameters())
+        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in param_optimizer if not any(
+                nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in param_optimizer if any(
+                nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        return transformers.AdamW(optimizer_grouped_parameters, lr=self.hparams.lr)
