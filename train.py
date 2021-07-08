@@ -91,8 +91,7 @@ def main(ctx, **cmd_args):
                          logger=wandb_logger,
                          callbacks=[checkpoint_callback],
                          benchmark=not manual_seed_specified,
-                         deterministic=manual_seed_specified,
-                         replace_sampler_ddp=False)
+                         deterministic=manual_seed_specified)
 
     trainer.fit(model, dm)
     if rank_zero_only.rank == 0:
