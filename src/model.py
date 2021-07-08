@@ -82,14 +82,15 @@ class TransformerClassifier(pl.LightningModule):
         self.loss = nn.BCEWithLogitsLoss()
         # self.loss = F1Loss()
 
-        shared_metrics = kdict(accuracy=Accuracy(num_classes=num_classes),
-                               f1=F1(num_classes=num_classes))
+        shared_metrics = kdict(accuracy=Accuracy(num_classes=num_classes, dist_sync_on_step=True),
+                               f1=F1(num_classes=num_classes, dist_sync_on_step=True))
         self.metrics = kdict(
             train=shared_metrics.copy(),
             val=shared_metrics.copy(),
             test=shared_metrics.copy())
 
-        self.val_confusion = StatScores(num_classes=num_classes)
+        self.val_confusion = StatScores(num_classes=num_classes, dist_sync_on_step=True)
+        self.test = []
 
     # def setup(self, stage):
         # self.transformer = self.transformer.to(self.device)
@@ -124,7 +125,8 @@ class TransformerClassifier(pl.LightningModule):
 
         if step_type == 'val':
             self.val_confusion(sigmoid(logits), labels)
-
+        if step_type == 'train':
+            self.test.extend(labels)
         return loss
 
     def training_step(self, batch, batch_idx):
