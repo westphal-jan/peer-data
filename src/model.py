@@ -98,13 +98,13 @@ class TransformerClassifier(pl.LightningModule):
 
     def forward(self, x):
         # self.transformer = self.transformer.to(self.device)
-        features = self.transformer.tokenize(x)
-        features = batch_to_device(features, self.device)
-        embeddings = self.transformer(features)['sentence_embedding']
-        embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+        # features = self.transformer.tokenize(x)
+        # features = batch_to_device(features, self.device)
+        # embeddings = self.transformer(features)['sentence_embedding']
+        # embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
         # print(embeddings['sentence_embedding'], embeddings['sentence_embedding'].shape, embeddings['cls_token_embeddings'], embeddings['cls_token_embeddings'].shape)
-        # embeddings = self.transformer.encode(
-        #     x, convert_to_tensor=True, device=self.device)
+        embeddings = self.transformer.encode(
+            x, convert_to_tensor=True, device=self.device)
         # print(embeddings)
 
         return self.classifier(embeddings)
