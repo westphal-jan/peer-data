@@ -11,6 +11,7 @@ from torchmetrics import Accuracy, F1, MatthewsCorrcoef
 from sentence_transformers import SentenceTransformer, models
 import torch
 import transformers
+from copy import deepcopy
 class F1Loss(nn.Module):
     '''Calculate F1 score. Can work with gpu tensors
 
