@@ -81,8 +81,8 @@ class TransformerClassifier(pl.LightningModule):
             nn.ReLU(),
             nn.Linear(334, 1)
         )
-        self.loss = nn.BCEWithLogitsLoss()
-        # self.loss = F1Loss()
+        # self.loss = nn.BCEWithLogitsLoss()
+        self.loss = F1Loss()
 
         shared_metrics = kdict(accuracy=Accuracy(num_classes=num_classes),
                                f1=F1(num_classes=num_classes))
@@ -154,7 +154,7 @@ class TransformerClassifier(pl.LightningModule):
         param_optimizer = list(self.named_parameters())
 
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-        print(len([p for n, p in param_optimizer if any(
+        print("no weight decay layers", len([p for n, p in param_optimizer if any(
             nd in n for nd in no_decay)]))
         optimizer_grouped_parameters = [
             {'params': [p for n, p in param_optimizer if not any(
