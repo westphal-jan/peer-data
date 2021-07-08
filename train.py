@@ -12,6 +12,8 @@ import pytorch_lightning as pl
 from src.dataloading import BasicDataModule
 from src.model import TransformerClassifier
 import subprocess
+from dotenv import load_dotenv
+
 WANDB_PROJECT = "paper-classification"
 WANDB_ENTITY = "paper-judging"
 
@@ -73,6 +75,8 @@ def main(ctx, **cmd_args):
     dm = BasicDataModule(
         data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size)
     model = TransformerClassifier()
+
+    load_dotenv()
     if rank_zero_only.rank == 0:
         start_wandb_logging(cmd_args, model, WANDB_PROJECT)
     wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=WANDB_PROJECT, experiment=wandb.run,
