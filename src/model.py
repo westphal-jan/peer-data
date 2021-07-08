@@ -7,7 +7,7 @@ from torchmetrics.classification.stat_scores import StatScores
 from klib import kdict
 import pytorch_lightning as pl
 from torch import optim, nn, sigmoid
-from torchmetrics import Accuracy, F1
+from torchmetrics import Accuracy, F1, MatthewsCorrcoef
 from sentence_transformers import SentenceTransformer, models
 import torch
 import transformers
@@ -81,11 +81,12 @@ class TransformerClassifier(pl.LightningModule):
             nn.ReLU(),
             nn.Linear(334, 1)
         )
-        # self.loss = nn.BCEWithLogitsLoss()
-        self.loss = F1Loss()
+        self.loss = nn.BCEWithLogitsLoss()
+        # self.loss = F1Loss()
 
         shared_metrics = kdict(accuracy=Accuracy(num_classes=num_classes),
-                               f1=F1(num_classes=num_classes))
+                               f1=F1(num_classes=num_classes),
+                               )
         self.metrics = kdict(
             train=shared_metrics.copy(),
             val=shared_metrics.copy(),

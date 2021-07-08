@@ -6,7 +6,7 @@ import glob
 import json
 import torch
 from catalyst.data.sampler import BalanceClassSampler, DistributedSamplerWrapper
-
+import numpy as np
 class BasicDataModule(pl.LightningDataModule):
     def __init__(self, data_dirs: str, batch_size: int, workers: int, ddp: bool = False, fast_debug: bool = False):
         super().__init__()
@@ -29,13 +29,33 @@ class BasicDataModule(pl.LightningDataModule):
                                                                    [train_len, val_len, test_len])
 
     def train_dataloader(self) -> DataLoader:
-        labels = label_callback(self.train_set)
+        labels = [ label for abstract, label in self.train_set]
+        for i, (text, label) in enumerate(self.train_set):
+            if not label == labels[i]:
+                print(label, labels[i])
         # print(len(labels), labels)
-        sampler = BalanceClassSampler(
-            labels=label_callback(self.train_set))
+        # sampler = BalanceClassSampler(
+        #     labels=label_callback(self.train_set))
+        number_rejected, number_accepted = np.bincount(labels)
+        print("Accepted:", number_accepted, "Rejectd:", number_rejected)
+
+        sampler = None
+
+        if number_rejected > number_accepted:
+            class_weights = (1, number_rejected / number_accepted)
+            minority_class = "Accepted papers"
+        else:
+            class_weights = (number_accepted / number_rejected, 1)
+            minority_class = "Rejected papers"
+
+        sample_weights = [class_weights[label] for label in labels]
+        print(
+            f"Oversampling minority class ({minority_class}) with ratio: (Rejected) {class_weights[0]}:{class_weights[1]} (Accepted)")
+        sampler = data.WeightedRandomSampler(
+            weights=sample_weights, num_samples=len(sample_weights))
         if self.ddp:
             sampler = DistributedSamplerWrapper(sampler)
-        return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
+        return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.workers, sampler=sampler, pin_memory=True)
 
     def val_dataloader(self) -> DataLoader:
         return DataLoader(self.val_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
@@ -49,18 +69,19 @@ class PaperDataset(Dataset):
     def __init__(self, file_paths) -> None:
         super().__init__()
         self._file_paths = file_paths
+        self.papers = []
+        for i, file_path in enumerate(self._file_paths):
+            with open(file_path) as f:
+                paper_json = json.load(f)
+                accepted = paper_json["review"]["accepted"]
+                abstract = paper_json["review"]["abstract"]
+                self.papers.append({"accepted": int(accepted), "abstract": abstract})
 
     def __len__(self):
         return len(self._file_paths)
 
     def __getitem__(self, index):
-
-        with open(self._file_paths[index]) as f:
-            paper_json = json.load(f)
-
-        abstract = paper_json["review"]["abstract"]
-        accepted = paper_json["review"]["accepted"]
-        return abstract, torch.tensor(int(accepted))
+        return self.papers[index]['abstract'], torch.tensor(self.papers[index]['accepted'])
 
 def label_callback(dataset: Subset[PaperDataset]):
     labels = []
