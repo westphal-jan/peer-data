@@ -118,9 +118,14 @@ class TransformerClassifier(pl.LightningModule):
         logits = self.forward(data).squeeze(1)
         loss = self.loss(logits, labels.type_as(logits))
         self.log(f'{step_type}/loss', loss)
-        self._log_metrics(step_type, sigmoid(logits), labels)
+        self.log(f'{step_type}/logits', logits)
+        # self._log_metrics(step_type, sigmoid(logits), labels)
+        self._log_metrics(step_type, 1 - loss, labels)
+
         if step_type == 'val':
-            self.val_confusion(sigmoid(logits), labels)
+            # self.val_confusion(sigmoid(logits), labels)
+            self.val_confusion(1 - loss, labels)
+
         return loss
 
     def training_step(self, batch, batch_idx):
