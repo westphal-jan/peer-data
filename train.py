@@ -94,7 +94,7 @@ def main(ctx, **cmd_args):
                          benchmark=not manual_seed_specified,
                          deterministic=manual_seed_specified,
                          gradient_clip_val=1,
-                         stochastic_weight_avg=True,
+                         #  stochastic_weight_avg=True, # leads to error in test phase : AttributeError: 'TransformerClassifier' object has no attribute '_parameters'
                          fast_dev_run=cmd_args.fast_dev)
 
     trainer.fit(model, dm)
