@@ -32,7 +32,7 @@ class BasicDataModule(pl.LightningDataModule):
         labels = label_callback(self.train_set)
         # print(len(labels), labels)
         sampler = BalanceClassSampler(
-            labels=label_callback(self.train_set), mode='upsampling')
+            labels=label_callback(self.train_set))
         if self.ddp:
             sampler = DistributedSamplerWrapper(sampler)
         return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.workers, sampler=sampler, pin_memory=True)
