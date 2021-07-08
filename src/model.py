@@ -1,4 +1,5 @@
 
+from pytorch_lightning.trainer import optimizers
 from pytorch_lightning.utilities.distributed import rank_zero_only
 from sentence_transformers.util import batch_to_device
 from torch import Tensor
@@ -9,6 +10,7 @@ from torch import optim, nn, sigmoid
 from torchmetrics import Accuracy, F1
 from sentence_transformers import SentenceTransformer, models
 import torch
+import transformers
 class F1Loss(nn.Module):
     '''Calculate F1 score. Can work with gpu tensors
 
@@ -63,7 +65,7 @@ class F1Loss(nn.Module):
         else:
             return 1 - f1
 class TransformerClassifier(pl.LightningModule):
-    def __init__(self, lr=0.001, num_classes=1) -> None:
+    def __init__(self, lr=2e-5, num_classes=1) -> None:
         super().__init__()
         self.save_hyperparameters()
         # transformer_backbone = models.Transformer('paraphrase-TinyBERT-L6-v2')
@@ -98,13 +100,13 @@ class TransformerClassifier(pl.LightningModule):
 
     def forward(self, x):
         # self.transformer = self.transformer.to(self.device)
-        # features = self.transformer.tokenize(x)
-        # features = batch_to_device(features, self.device)
-        # embeddings = self.transformer(features)['sentence_embedding']
+        features = self.transformer.tokenize(x)
+        features = batch_to_device(features, self.device)
+        embeddings = self.transformer(features)['sentence_embedding']
         # embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
         # print(embeddings['sentence_embedding'], embeddings['sentence_embedding'].shape, embeddings['cls_token_embeddings'], embeddings['cls_token_embeddings'].shape)
-        embeddings = self.transformer.encode(
-            x, convert_to_tensor=True, device=self.device)
+        # embeddings = self.transformer.encode(
+        #     x, convert_to_tensor=True, device=self.device)
         # print(embeddings)
 
         return self.classifier(embeddings)
@@ -149,5 +151,15 @@ class TransformerClassifier(pl.LightningModule):
         return self._step("test", batch)
 
     def configure_optimizers(self):
+        param_optimizer = list(self.named_parameters())
 
-        return optim.Adam(self.parameters(), lr=self.hparams.lr)
+        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+        print(len([p for n, p in param_optimizer if any(
+            nd in n for nd in no_decay)]))
+        optimizer_grouped_parameters = [
+            {'params': [p for n, p in param_optimizer if not any(
+                nd in n for nd in no_decay)], 'weight_decay': 0.01},
+            {'params': [p for n, p in param_optimizer if any(
+                nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        ]
+        return transformers.AdamW(optimizer_grouped_parameters, lr=self.hparams.lr)
