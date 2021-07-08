@@ -85,14 +85,8 @@ def main(ctx, **cmd_args):
     load_dotenv()
     if rank_zero_only.rank == 0:
         start_wandb_logging(cmd_args, model, WANDB_PROJECT)
-        uniquify_prefix = get_out_dir_prefix(
-            
-            
-            cmd_args.results_dir, cmd_args.run_name)
-        cmd_args.results_dir = cmd_args.results_dir / \
-            \
-            \
-            (uniquify_prefix + cmd_args.run_name)
+        uniquify_prefix = get_out_dir_prefix(cmd_args.results_dir, cmd_args.run_name)
+        cmd_args.results_dir = cmd_args.results_dir / (uniquify_prefix + cmd_args.run_name)
         assert not os.path.exists(cmd_args.results_dir)
         os.makedirs(cmd_args.results_dir, exist_ok=True)
         print(cmd_args)
