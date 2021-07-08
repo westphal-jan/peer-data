@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from pytorch_lightning.utilities.distributed import rank_zero_only
 from klib.misc import push_file_to_wandb
 from pathlib import Path
 from klib import CustomWandbLogger, process_click_args, int_sequence, UnlimitedNargsOption
@@ -9,9 +11,41 @@ from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 import pytorch_lightning as pl
 from src.dataloading import BasicDataModule
 from src.model import TransformerClassifier
-
+import subprocess
 WANDB_PROJECT = "paper-classification"
 WANDB_ENTITY = "paper-judging"
+
+
+def get_wandb_api_key():
+    try:
+        api_key = os.environ.get("WANDB_API_KEY")
+    except Exception as e:
+        print(e)
+        api_key = None
+    return api_key
+
+
+def try_wandb_login():
+    WAND_API_KEY = get_wandb_api_key()
+    if WAND_API_KEY:
+        try:
+            subprocess.run(["wandb", "login", WAND_API_KEY], check=True)
+            return True
+        except Exception as e:
+            print(e)
+            return False
+    else:
+        print("WARNING: No wandb API key found, this run will NOT be logged to wandb.")
+        input("Press any key to continue...")
+        return False
+
+
+def start_wandb_logging(cfg, model, project):
+    if try_wandb_login():
+        wandb.init(project=project, entity=WANDB_ENTITY,
+                   name=cfg.training_name, tags=cfg.tags)
+        wandb.config.update(cfg)
+        wandb.watch(model, log="all")
 
 
 @click.command()
@@ -39,6 +73,8 @@ def main(ctx, **cmd_args):
     dm = BasicDataModule(
         data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size)
     model = TransformerClassifier()
+    if rank_zero_only.rank == 0:
+        start_wandb_logging(cmd_args, model, WANDB_PROJECT)
     wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=WANDB_PROJECT,
                                      entity=WANDB_ENTITY, job_type='train', save_dir=cmd_args.results_dir)
     checkpoint_callback = ModelCheckpoint(
@@ -55,7 +91,8 @@ def main(ctx, **cmd_args):
                          replace_sampler_ddp=False)
 
     trainer.fit(model, dm)
-    push_file_to_wandb(f"{str(cmd_args.results_dir)}/*.ckpt")
+    if rank_zero_only.rank == 0:
+        push_file_to_wandb(f"{str(cmd_args.results_dir)}/*.ckpt")
     trainer.test(model=model, datamodule=dm, ckpt_path=None)
 
 
