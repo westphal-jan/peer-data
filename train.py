@@ -61,6 +61,7 @@ def start_wandb_logging(cfg, model, project):
 @click.option('--datasets', '-d', help="Datasets to train on", required=True, multiple=True, type=click.Path(exists=True, writable=True, file_okay=False))
 @click.option('--results-dir', '-r', type=click.Path(writable=True, file_okay=False), default=Path("./results"))
 @click.option('--run-name', '-n', default=datetime.now().strftime('%d-%m-%Y_%H_%M_%S'))
+@click.option('--fast-dev', '--fd', is_flag=True)
 def main(ctx, **cmd_args):
     cmd_args = process_click_args(ctx, cmd_args)
 
@@ -93,7 +94,8 @@ def main(ctx, **cmd_args):
                          benchmark=not manual_seed_specified,
                          deterministic=manual_seed_specified,
                          gradient_clip_val=1,
-                         stochastic_weight_avg=True)
+                         stochastic_weight_avg=True,
+                         fast_dev_run=cmd_args.fast_dev)
 
     trainer.fit(model, dm)
     if rank_zero_only.rank == 0:
