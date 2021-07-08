@@ -75,7 +75,7 @@ def main(ctx, **cmd_args):
     prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
     prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
     cur_run_id = max(prev_run_ids, default=-1) + 1
-    cmd_args.results_dir = cmd_args.results_dir / (cur_run_id + "-" + cmd_args.run_name)
+    cmd_args.results_dir = cmd_args.results_dir / (str(cur_run_id) + "-" + cmd_args.run_name)
 
     print(cmd_args)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
