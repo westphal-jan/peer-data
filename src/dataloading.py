@@ -37,7 +37,7 @@ class BasicDataModule(pl.LightningDataModule):
         # sampler = BalanceClassSampler(
         #     labels=label_callback(self.train_set))
         number_rejected, number_accepted = np.bincount(labels)
-        print("Accepted:", number_accepted, "Rejectd:", number_rejected)
+        print("Accepted:", number_accepted, "Rejected:", number_rejected)
 
         sampler = None
 

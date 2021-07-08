@@ -92,7 +92,8 @@ def main(ctx, **cmd_args):
                          callbacks=[checkpoint_callback],
                          benchmark=not manual_seed_specified,
                          deterministic=manual_seed_specified,
-                         gradient_clip_val=1)
+                         gradient_clip_val=1,
+                         stochastic_weight_avg=True)
 
     trainer.fit(model, dm)
     if rank_zero_only.rank == 0:
