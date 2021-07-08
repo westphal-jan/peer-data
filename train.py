@@ -72,6 +72,7 @@ def main(ctx, **cmd_args):
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
     os.makedirs(cmd_args.results_dir, exist_ok=True)
+    print(cmd_args.accelerator)
     dm = BasicDataModule(
         data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size, ddp=cmd_args.accelerator == "ddp")
     model = TransformerClassifier()
