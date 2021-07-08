@@ -73,9 +73,9 @@ class TransformerClassifier(pl.LightningModule):
         return self._step("val", batch)
 
     def validation_epoch_end(self, outputs) -> None:
-        if self.global_rank == 0:
-            print(self.val_confusion.compute())
-            self.val_confusion.reset()
+        # if self.global_rank == 0:
+        print(self.val_confusion.compute())
+        self.val_confusion.reset()
 
         print(len([val for val in self.class_balance_check if val == 0]),
               len([val for val in self.class_balance_check if val == 1]))
