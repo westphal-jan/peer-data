@@ -88,7 +88,7 @@ class TransformerClassifier(pl.LightningModule):
         shared_metrics = nn.ModuleDict(dict(accuracy=Accuracy(num_classes=num_classes),
                                             f1=F1(num_classes=num_classes)),
                                )
-        self.metrics = nn.ModuleDict(dict(training=deepcopy(shared_metrics),
+        self.metrics = nn.ModuleDict(dict(_train=deepcopy(shared_metrics),
                                           val=deepcopy(shared_metrics),
                                           test=deepcopy(shared_metrics)))
 
@@ -128,12 +128,12 @@ class TransformerClassifier(pl.LightningModule):
 
         if step_type == 'val':
             self.val_confusion(sigmoid(logits), labels)
-        if step_type == 'train':
+        if step_type == '_train':
             self.test.extend(labels)
         return loss
 
     def training_step(self, batch, batch_idx):
-        return self._step("train", batch)
+        return self._step("_train", batch)
 
     def validation_step(self, batch, batch_idx):
         return self._step("val", batch)
