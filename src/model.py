@@ -139,7 +139,9 @@ class TransformerClassifier(pl.LightningModule):
         # if rank_zero_only.rank == 0:
         #     print(self.val_confusion.compute())
         print(self.val_confusion.compute())
-
+        print(len([val for val in self.test if val == 0]),
+              len([val for val in self.test if val == 1]))
+        self.test = []
         self.val_confusion.reset()
         return super().validation_epoch_end(outputs)
 
