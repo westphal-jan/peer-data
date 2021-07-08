@@ -13,7 +13,7 @@ from src.dataloading import BasicDataModule
 from src.model import TransformerClassifier
 import subprocess
 from dotenv import load_dotenv
-
+import re
 WANDB_PROJECT = "paper-classification"
 WANDB_ENTITY = "paper-judging"
 
@@ -67,7 +67,15 @@ def main(ctx, **cmd_args):
 
     manual_seed_specified = cmd_args.seed is not None
     cmd_args.seed = pl.seed_everything(workers=True, seed=cmd_args.seed)
-    cmd_args.results_dir = cmd_args.results_dir / cmd_args.run_name
+
+    # unique out dir name
+    prev_run_dirs = []
+    if os.path.isdir(cmd_args.results_dir):
+        prev_run_dirs = [x for x in os.listdir(cmd_args.results_dir) if os.path.isdir(os.path.join(cmd_args.results_dir, x))]
+    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
+    prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
+    cur_run_id = max(prev_run_ids, default=-1) + 1
+    cmd_args.results_dir = cmd_args.results_dir / (cur_run_id + "-" + cmd_args.run_name)
 
     print(cmd_args)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
