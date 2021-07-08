@@ -160,7 +160,7 @@ class TransformerClassifier(pl.LightningModule):
 
         shared_metrics = nn.ModuleDict(dict(accuracy=Accuracy(num_classes=num_classes),
                                             f1=F1(num_classes=num_classes),
-                                            mcc=MCC(labels=[0,1], pos_label=1)),
+                                            mcc=MCC(labels=[1])),
                                )
         self.metrics = nn.ModuleDict(dict(_train=deepcopy(shared_metrics),
                                           val=deepcopy(shared_metrics),
