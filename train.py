@@ -80,7 +80,7 @@ def main(ctx, **cmd_args):
     if rank_zero_only.rank == 0:
         start_wandb_logging(cmd_args, model, WANDB_PROJECT)
     wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=WANDB_PROJECT, experiment=wandb.run,
-                                     entity=WANDB_ENTITY, job_type='train', save_dir=cmd_args.results_dir)
+                                     entity=WANDB_ENTITY, job_type='train', log_model=False)
     checkpoint_callback = ModelCheckpoint(
         dirpath=cmd_args.results_dir, save_last=True, every_n_val_epochs=1)
     # Initialize a trainer
