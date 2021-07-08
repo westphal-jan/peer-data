@@ -84,13 +84,13 @@ class TransformerClassifier(pl.LightningModule):
         self.loss = nn.BCEWithLogitsLoss()
         # self.loss = F1Loss()
 
-        shared_metrics = nn.ModuleDict(accuracy=Accuracy(num_classes=num_classes),
-                               f1=F1(num_classes=num_classes),
+        shared_metrics = nn.ModuleDict(dict(accuracy=Accuracy(num_classes=num_classes),
+                                            f1=F1(num_classes=num_classes)),
                                )
-        self.metrics = nn.ModuleDict(
+        self.metrics = nn.ModuleDict(dict(
             train=shared_metrics.copy(),
             val=shared_metrics.copy(),
-            test=shared_metrics.copy())
+            test=shared_metrics.copy()))
 
         self.val_confusion = StatScores(num_classes=num_classes)
         self.test = []
