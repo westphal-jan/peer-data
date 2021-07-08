@@ -23,7 +23,7 @@ class TransformerClassifier(pl.LightningModule):
         #     nn.Linear(334, 1)
         # )
         self.classifier = nn.Linear(768, 1)
-        
+
         self.loss = nn.BCEWithLogitsLoss()
         # self.loss = F1Loss()
 
@@ -38,15 +38,12 @@ class TransformerClassifier(pl.LightningModule):
 
 
     def forward(self, x):
-        # self.transformer = self.transformer.to(self.device)
         features = self.transformer.tokenize(x)
         features = batch_to_device(features, self.device)
         embeddings = self.transformer(features)['sentence_embedding']
         # embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
-        # print(embeddings['sentence_embedding'], embeddings['sentence_embedding'].shape, embeddings['cls_token_embeddings'], embeddings['cls_token_embeddings'].shape)
         # embeddings = self.transformer.encode(
         #     x, convert_to_tensor=True, device=self.device)
-        # print(embeddings)
 
         return self.classifier(embeddings)
 
@@ -77,9 +74,9 @@ class TransformerClassifier(pl.LightningModule):
         return self._step("val", batch)
 
     def validation_epoch_end(self, outputs) -> None:
-        if rank_zero_only.rank == 0:
-            print(self.val_confusion.compute())
-            self.val_confusion.reset()
+        # if rank_zero_only.rank == 0:
+        print(self.val_confusion.compute())
+        self.val_confusion.reset()
 
         print(len([val for val in self.class_balance_check if val == 0]),
               len([val for val in self.class_balance_check if val == 1]))
