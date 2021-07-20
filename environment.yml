@@ -6,6 +6,7 @@ channels:
 dependencies:
   - python=3.8
   - pytorch
+  - pytorch-cpu
   - torchtext
   - autopep8
   - typing
@@ -15,6 +16,6 @@ dependencies:
     - wandb
     - pytorch-lightning
     - click
-
-
+    - python-dotenv
+    - catalyst
 
