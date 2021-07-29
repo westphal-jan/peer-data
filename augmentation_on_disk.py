@@ -41,9 +41,9 @@ def process_chunk(paths, gpu_idx, augmentation_name, batch_size):
 
 
 def get_augment(augmentation_name, gpu_idx, batch_size):
-    if augmentation_name == "augmentation-substitute-distilbert":
+    if augmentation_name == "substitute-distilbert":
         return naw.ContextualWordEmbsAug(model_path='distilbert-base-uncased', aug_p=0.1, batch_size=batch_size, device=f"cuda:{gpu_idx}")
-    if augmentation_name == "augmentation-insert-distilbert":
+    if augmentation_name == "insert-distilbert":
         return naw.ContextualWordEmbsAug(model_path='distilbert-base-uncased', aug_p=0.1, action='insert', batch_size=batch_size, device=f"cuda:{gpu_idx}")
     if augmentation_name == "back-translations":
         return naw.BackTranslationAug(from_model_name='facebook/wmt19-en-de', to_model_name='facebook/wmt19-de-en',

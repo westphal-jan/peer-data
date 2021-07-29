@@ -1,3 +1,4 @@
+from typing import List
 import nlpaug.augmenter.word as naw
 import nltk
 import nlpaug.augmenter.sentence as nas
@@ -15,14 +16,14 @@ from tqdm import tqdm
 
 
 class BasicDataModule(pl.LightningDataModule):
-    def __init__(self, data_dirs: str, batch_size: int, workers: int, ddp: bool = False, fast_debug: bool = False, use_backtranslations=False):
+    def __init__(self, data_dirs: str, batch_size: int, workers: int, ddp: bool = False, fast_debug: bool = False, augmentation_datasets: List[str] = []):
         super().__init__()
         self.data_dirs = data_dirs
         self.batch_size = batch_size
         self.workers = workers
         self.fast_debug = fast_debug
         self.ddp = ddp
-        self.use_backtranslations = use_backtranslations
+        self.augmentation_datasets = augmentation_datasets
 
     def setup(self, stage):
         self._file_paths = glob.glob(f"{self.data_dirs[0]}/*.json")
@@ -44,14 +45,17 @@ class BasicDataModule(pl.LightningDataModule):
         self.train_set, self.val_set, self.test_set = Subset(complete_data, train_idx), Subset(
             complete_data, val_idx), Subset(complete_data, test_idx)
 
-        # We need to be careful and only train on backtranslations of abstracts that are in the train set.
-        if self.use_backtranslations:
+        # We need to be careful and only train on augmentations of abstracts that are in the train set.
+        for aug in self.augmentation_datasets:
+            print("Using augmentation dataset", aug)
             backtranslation_paths = glob.glob(
-                f"./data/back-translations/*.json")
+                f"./data/{aug}/*.json")
             # print(backtranslation_paths[:10], self._file_paths[:10])
-            backtranslation_data = PaperDataset(backtranslation_paths)
-            back_train_set = Subset(backtranslation_data, train_idx)
-            self.train_set = ConcatDataset([self.train_set, back_train_set])
+            aug_data = PaperDataset(backtranslation_paths)
+            aug_train_set = Subset(aug_data, train_idx)
+            self.train_set = ConcatDataset([self.train_set, aug_train_set])
+
+        
         print("Train set len", len(self.train_set))
 
     def train_dataloader(self) -> DataLoader:
@@ -115,26 +119,14 @@ class PaperDataset(Dataset):
         return len(self._file_paths)
 
     def _augment(self, text):
-        # wordnet_synonym_aug = naw.SynonymAug(aug_src='wordnet', aug_min=10,
-        #                                      aug_max=len(text), aug_p=0.25)
+        wordnet_synonym_aug = naw.SynonymAug(aug_src='wordnet', aug_min=5,
+                                             aug_max=50, aug_p=0.1)
 
-        distilbert_substitute_aug = naw.ContextualWordEmbsAug(
-            model_path='distilbert-base-uncased', aug_p=0.1, device='cuda:0')
-        distilbert_insert_aug = naw.ContextualWordEmbsAug(
-            model_path='distilbert-base-uncased', aug_p=0.1, action='insert', device=self.device)
-
-        text = distilbert_substitute_aug.augment(text)
-        text=distilbert_insert_aug.augment(text)
-        # context_aug = nas.ContextualWordEmbsForSentenceAug(model_path='gpt2')
-        # augmented_text = context_aug.augment(text)
-
-        # ppdb_synonym_aug = naw.SynonymAug(aug_src='ppdb', model_path='ppdb-2.0-tldr')
-
-        # try:
-        #     augmented_text = wordnet_synonym_aug.augment(
-        #         text).replace(' - ', '-')
-        # except Exception as e:
-        #     return text
+        try:
+            text = wordnet_synonym_aug.augment(
+                text).replace(' - ', '-')
+        except Exception as e:
+            return text
 
         # print(augmented_text, text)
         return text

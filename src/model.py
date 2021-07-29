@@ -2,7 +2,7 @@ from sentence_transformers.util import batch_to_device
 from torch import Tensor
 from torchmetrics.classification.stat_scores import StatScores
 import pytorch_lightning as pl
-from torch import nn, sigmoid
+from torch import nn, sigmoid, tensor
 from torchmetrics import Accuracy, F1, Recall, Precision, MatthewsCorrcoef
 from sentence_transformers import SentenceTransformer
 import transformers
@@ -23,7 +23,8 @@ class TransformerClassifier(pl.LightningModule):
         # )
         self.classifier = nn.Linear(768, 1)
 
-        self.loss = nn.BCEWithLogitsLoss()
+        extra_weight_on_accepted = tensor([3])
+        self.loss = nn.BCEWithLogitsLoss(pos_weight=extra_weight_on_accepted)
         # self.loss = F1Loss()
 
         shared_metrics = nn.ModuleDict(dict(accuracy=Accuracy(num_classes=num_classes),
