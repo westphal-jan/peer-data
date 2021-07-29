@@ -1,5 +1,6 @@
 import glob
 import nlpaug.augmenter.word as naw
+import nlpaug.augmenter.sentence as nas
 import json
 import copy
 from tqdm import tqdm
@@ -8,12 +9,12 @@ import click
 import multiprocessing as mp
 
 
-def process_chunk(paths, gpu_idx, augmentation_name, batch_size):
+def process_chunk(paths, gpu_idx, pos_idx, augmentation_name, batch_size):
     augmentation = get_augment(augmentation_name, gpu_idx, batch_size)
     batch = []
     out_dir = f'./data/{augmentation_name}/'
     os.makedirs(out_dir, exist_ok=True)
-    for path in tqdm(paths, pos=gpu_idx):
+    for path in tqdm(paths, pos=pos_idx):
         filename = path.split('/')[-1]
         if os.path.exists(out_dir + filename):
             continue
@@ -41,15 +42,21 @@ def process_chunk(paths, gpu_idx, augmentation_name, batch_size):
 
 
 def get_augment(augmentation_name, gpu_idx, batch_size):
+    extra_kwargs = dict(batch_size=batch_size, device=f"cuda:{gpu_idx}")
     if augmentation_name == "substitute-distilbert":
-        return naw.ContextualWordEmbsAug(model_path='distilbert-base-uncased', aug_p=0.1, batch_size=batch_size, device=f"cuda:{gpu_idx}")
+        return naw.ContextualWordEmbsAug(model_path='distilbert-base-uncased', aug_p=0.1, aug_max=None, **extra_kwargs)
+    if augmentation_name == "hyper-substitute-distilbert":
+        return naw.ContextualWordEmbsAug(model_path='distilbert-base-uncased', aug_p=0.3, aug_max=None, **extra_kwargs)
     if augmentation_name == "insert-distilbert":
-        return naw.ContextualWordEmbsAug(model_path='distilbert-base-uncased', aug_p=0.1, action='insert', batch_size=batch_size, device=f"cuda:{gpu_idx}")
+        return naw.ContextualWordEmbsAug(model_path='distilbert-base-uncased', aug_p=0.1, aug_max=None, action='insert', **extra_kwargs)
+    if augmentation_name == "hyper-insert-distilbert":
+        return naw.ContextualWordEmbsAug(model_path='distilbert-base-uncased', aug_p=0.3, aug_max=None, action='insert', **extra_kwargs)
+    if augmentation_name == "sentence-gpt":
+        return nas.ContextualWordEmbsForSentenceAug(model_path='distilgpt2', max_length=512, **extra_kwargs)
     if augmentation_name == "back-translations":
         return naw.BackTranslationAug(from_model_name='facebook/wmt19-en-de', to_model_name='facebook/wmt19-de-en',
-                                      device=f"cuda:{gpu_idx}",
                                       max_length=512,
-                                      batch_size=batch_size
+                                      **extra_kwargs
                                       )
 
 
@@ -69,7 +76,7 @@ def main(ctx, batch_size, gpus, augmentation):
     split_paths = chunker_list(paths, len(gpu_idxs))
     d_len = len(split_paths)
     with mp.Pool(len(gpu_idxs)) as pool:
-        pool.starmap(process_chunk, zip(split_paths, gpu_idxs, [
+        pool.starmap(process_chunk, zip(split_paths, gpu_idxs, list(range(len(gpu_idxs))), [
                      augmentation]*d_len, [batch_size]*d_len))
 
         # print(abstract, '\n\n', backtrans)
