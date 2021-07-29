@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 
 class BasicDataModule(pl.LightningDataModule):
-    def __init__(self, data_dirs: str, batch_size: int, workers: int, ddp: bool = False, fast_debug: bool = False, augmentation_datasets: List[str] = []):
+    def __init__(self, data_dirs: str, batch_size: int, workers: int, ddp: bool = False, fast_debug: bool = False, augmentation_datasets: List[str] = [], no_oversampling=False):
         super().__init__()
         self.data_dirs = data_dirs
         self.batch_size = batch_size
@@ -24,6 +24,7 @@ class BasicDataModule(pl.LightningDataModule):
         self.fast_debug = fast_debug
         self.ddp = ddp
         self.augmentation_datasets = augmentation_datasets
+        self.no_oversampling = no_oversampling
 
     def setup(self, stage):
         self._file_paths = glob.glob(f"{self.data_dirs[0]}/*.json")
@@ -65,28 +66,29 @@ class BasicDataModule(pl.LightningDataModule):
         for i, (text, label) in enumerate(self.train_set):
             if not label == labels[i]:
                 print(label, labels[i])
-
-        # Do oversampling of minority class
-        number_rejected, number_accepted = np.bincount(labels)
-        print("Accepted:", number_accepted, "Rejected:", number_rejected)
-
         sampler = None
+        if not self.no_oversampling:
+            # Do oversampling of minority class
+            number_rejected, number_accepted = np.bincount(labels)
+            print("Accepted:", number_accepted, "Rejected:", number_rejected)
 
-        if number_rejected > number_accepted:
-            class_weights = (1, number_rejected / number_accepted)
-            minority_class = "Accepted papers"
-        else:
-            class_weights = (number_accepted / number_rejected, 1)
-            minority_class = "Rejected papers"
+            sampler = None
 
-        sample_weights = [class_weights[label] for label in labels]
-        print(
-            f"Oversampling minority class ({minority_class}) with ratio: (Rejected) {class_weights[0]}:{class_weights[1]} (Accepted)")
-        sampler = data.WeightedRandomSampler(
-            weights=sample_weights, num_samples=len(sample_weights))
+            if number_rejected > number_accepted:
+                class_weights = (1, number_rejected / number_accepted)
+                minority_class = "Accepted papers"
+            else:
+                class_weights = (number_accepted / number_rejected, 1)
+                minority_class = "Rejected papers"
 
-        if self.ddp:
-            sampler = DistributedSamplerWrapper(sampler)
+            sample_weights = [class_weights[label] for label in labels]
+            print(
+                f"Oversampling minority class ({minority_class}) with ratio: (Rejected) {class_weights[0]}:{class_weights[1]} (Accepted)")
+            sampler = data.WeightedRandomSampler(
+                weights=sample_weights, num_samples=len(sample_weights))
+
+            if self.ddp:
+                sampler = DistributedSamplerWrapper(sampler)
         return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.workers, sampler=sampler, pin_memory=True)
 
     def val_dataloader(self) -> DataLoader:
