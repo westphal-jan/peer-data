@@ -74,6 +74,8 @@ def get_out_dir_prefix(results_dir: Path, run_name: str) -> str:
 @click.option('--results-dir', '-r', type=click.Path(writable=True, file_okay=False), default=Path("./results"))
 @click.option('--run-name', '-n', default=datetime.now().strftime('%d-%m-%Y_%H_%M_%S'))
 @click.option('--fast-dev', '--fd', is_flag=True)
+@click.option('--use-backtranslations', is_flag=True)
+
 def main(ctx, **cmd_args):
     cmd_args = process_click_args(ctx, cmd_args)
 
@@ -92,7 +94,7 @@ def main(ctx, **cmd_args):
         print(cmd_args)
 
     dm = BasicDataModule(
-        data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size, ddp=cmd_args.accelerator == "ddp")
+        data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size, ddp=cmd_args.accelerator == "ddp", use_backtranslations=cmd_args.use_backtranslations)
 
     wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=WANDB_PROJECT, experiment=wandb.run,
                                      entity=WANDB_ENTITY, job_type='train', log_model=False)

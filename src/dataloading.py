@@ -7,22 +7,32 @@ import json
 import torch
 from catalyst.data.sampler import DistributedSamplerWrapper
 import numpy as np
+import random
 class BasicDataModule(pl.LightningDataModule):
-    def __init__(self, data_dirs: str, batch_size: int, workers: int, ddp: bool = False, fast_debug: bool = False):
+    def __init__(self, data_dirs: str, batch_size: int, workers: int, ddp: bool = False, fast_debug: bool = False, use_backtranslations=False):
         super().__init__()
         self.data_dirs = data_dirs
         self.batch_size = batch_size
         self.workers = workers
         self.fast_debug = fast_debug
         self.ddp = ddp
+        self.use_backtranslations = use_backtranslations
 
     def setup(self, stage):
         self._file_paths = glob.glob(f"{self.data_dirs[0]}/*.json")
+        backtranslation_paths = glob.glob(f"./data/back-translation/*.json")
+        pr
         complete_data = PaperDataset(self._file_paths)
         print(len(self._file_paths))
-        total_len = len(complete_data)
+        idx = range(len(self._file_paths))
+        random.shuffle(idx)
+        total_len = len(idx)
         train_len, val_len = int(0.8*total_len), int(0.1*total_len)
-        test_len = total_len - (train_len + val_len)
+        train_idx = idx[:train_len]
+        val_idx = idx[train_len:(train_len + val_len)]
+        test_idx = idx[(train_len + val_len):]
+
+
         print(
             f"Perform train/val/test split: train {train_len}, val {val_len}, test {test_len}")
         self.train_set, self.val_set, self.test_set = random_split(complete_data,
