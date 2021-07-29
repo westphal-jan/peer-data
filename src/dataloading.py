@@ -29,7 +29,6 @@ class BasicDataModule(pl.LightningDataModule):
                                                                    [train_len, val_len, test_len])
 
     def train_dataloader(self) -> DataLoader:
-
         labels = [ label for abstract, label in self.train_set]
 
         # Sanity check
@@ -66,12 +65,18 @@ class BasicDataModule(pl.LightningDataModule):
     def test_dataloader(self) -> DataLoader:
         return DataLoader(self.test_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
 
+import nlpaug.augmenter.word as naw
+import nlpaug.augmenter.sentence as nas
 
-
+# Synonym Augmenter
+import nltk
+nltk.download('averaged_perceptron_tagger')
+nltk.download('wordnet')
 class PaperDataset(Dataset):
-    def __init__(self, file_paths) -> None:
+    def __init__(self, file_paths, augment=True) -> None:
         super().__init__()
         self._file_paths = file_paths
+        self.augment = augment
         self.papers = []
         for i, file_path in enumerate(self._file_paths):
             with open(file_path) as f:
@@ -82,7 +87,14 @@ class PaperDataset(Dataset):
 
     def __len__(self):
         return len(self._file_paths)
-
+    def _augment(self, text):
+        aug = naw.SynonymAug(aug_src='wordnet', aug_min=10, aug_max=512, aug_p=0.25)
+        augmented_text = aug.augment(text).replace(' - ', '-')
+        # print(augmented_text, text)
+        return augmented_text
     def __getitem__(self, index):
-        return self.papers[index]['abstract'], torch.tensor(self.papers[index]['accepted'])
+        abstract = self.papers[index]['abstract']
+        if self.augment:
+            abstract = self._augment(abstract)
+        return abstract, torch.tensor(self.papers[index]['accepted'])
 
