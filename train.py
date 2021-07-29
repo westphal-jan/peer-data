@@ -76,6 +76,7 @@ def get_out_dir_prefix(results_dir: Path, run_name: str) -> str:
 @click.option('--fast-dev', '--fd', is_flag=True)
 @click.option('--aug-datasets', '-a', multiple=True, help="specify the additional augmented datasets to use for training (e.g. -a=back-translations -a=insert-distilbert")
 @click.option('--no-oversampling', is_flag=True)
+@click.option('--accepted-class-weight', type=float, help="weight of accepted class for binary cross entropy loss")
 
 def main(ctx, **cmd_args):
     cmd_args = process_click_args(ctx, cmd_args)
@@ -84,7 +85,8 @@ def main(ctx, **cmd_args):
     cmd_args.seed = pl.seed_everything(workers=True, seed=cmd_args.seed)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
-    model = TransformerClassifier()
+    model = TransformerClassifier(
+        accepted_class_weight=cmd_args.accepted_class_weight)
     load_dotenv()
     if rank_zero_only.rank == 0:
         start_wandb_logging(cmd_args, model, WANDB_PROJECT)

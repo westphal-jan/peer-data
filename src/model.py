@@ -6,9 +6,10 @@ from torch import nn, sigmoid, tensor
 from torchmetrics import Accuracy, F1, Recall, Precision, MatthewsCorrcoef
 from sentence_transformers import SentenceTransformer
 import transformers
+import torch
 from copy import deepcopy
 class TransformerClassifier(pl.LightningModule):
-    def __init__(self, lr=2e-5, num_classes=1) -> None:
+    def __init__(self, lr=2e-5, num_classes=1, accepted_class_weight=1) -> None:
         super().__init__()
         self.save_hyperparameters()
    
@@ -23,7 +24,7 @@ class TransformerClassifier(pl.LightningModule):
         # )
         self.classifier = nn.Linear(768, 1)
 
-        extra_weight_on_accepted = tensor([3])
+        extra_weight_on_accepted = tensor(accepted_class_weight)
         self.loss = nn.BCEWithLogitsLoss(pos_weight=extra_weight_on_accepted)
         # self.loss = F1Loss()
 
@@ -60,10 +61,14 @@ class TransformerClassifier(pl.LightningModule):
                      metric(predictions, labels))
         confusion_metric = self.confusions[step_type]
         confusion_matrix = confusion_metric(predictions, labels)
-        self.log(f"{step_type}/TP", confusion_matrix[0])
-        self.log(f"{step_type}/FP", confusion_matrix[1])
-        self.log(f"{step_type}/TN", confusion_matrix[2])
-        self.log(f"{step_type}/FN", confusion_matrix[3])
+        self.log(f"{step_type}/TP",
+                 confusion_matrix[0], on_epoch=True, on_step=False, reduce_fx=torch.sum)
+        self.log(f"{step_type}/FP",
+                 confusion_matrix[1], on_epoch=True, on_step=False, reduce_fx=torch.sum)
+        self.log(f"{step_type}/TN",
+                 confusion_matrix[2], on_epoch=True, on_step=False, reduce_fx=torch.sum)
+        self.log(f"{step_type}/FN",
+                 confusion_matrix[3], on_epoch=True, on_step=False, reduce_fx=torch.sum)
 
     def _step(self, step_type: str, batch):
         data, labels = batch
