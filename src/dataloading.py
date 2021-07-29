@@ -16,7 +16,8 @@ from tqdm import tqdm
 
 
 class BasicDataModule(pl.LightningDataModule):
-    def __init__(self, data_dirs: str, batch_size: int, workers: int, ddp: bool = False, fast_debug: bool = False, augmentation_datasets: List[str] = [], no_oversampling=False):
+    def __init__(self, data_dirs: str, batch_size: int, workers: int, ddp: bool = False,
+                 fast_debug: bool = False, augmentation_datasets: List[str] = [], dynamic_augmentations: List[str] = [], no_oversampling=False):
         super().__init__()
         self.data_dirs = data_dirs
         self.batch_size = batch_size
@@ -25,10 +26,12 @@ class BasicDataModule(pl.LightningDataModule):
         self.ddp = ddp
         self.augmentation_datasets = augmentation_datasets
         self.no_oversampling = no_oversampling
+        self.dynamic_augmentations = dynamic_augmentations
 
     def setup(self, stage):
         self._file_paths = glob.glob(f"{self.data_dirs[0]}/*.json")
-        complete_data = PaperDataset(self._file_paths)
+        complete_data = PaperDataset(
+            self._file_paths, dynamic_augmentations=self.dynamic_augmentations)
         print(len(self._file_paths))
 
         # Get random index split for train/val/test.
@@ -52,11 +55,11 @@ class BasicDataModule(pl.LightningDataModule):
             backtranslation_paths = glob.glob(
                 f"./data/{aug}/*.json")
             # print(backtranslation_paths[:10], self._file_paths[:10])
-            aug_data = PaperDataset(backtranslation_paths)
+            aug_data = PaperDataset(
+                backtranslation_paths, dynamic_augmentations=self.dynamic_augmentations)
             aug_train_set = Subset(aug_data, train_idx)
             self.train_set = ConcatDataset([self.train_set, aug_train_set])
 
-        
         print("Train set len", len(self.train_set))
 
     def train_dataloader(self) -> DataLoader:
@@ -104,10 +107,10 @@ class BasicDataModule(pl.LightningDataModule):
 
 
 class PaperDataset(Dataset):
-    def __init__(self, file_paths, augment=True) -> None:
+    def __init__(self, file_paths, dynamic_augmentations=[]) -> None:
         super().__init__()
         self._file_paths = file_paths
-        self.augment = augment
+        self.dynamic_augmentations = dynamic_augmentations
         self.papers = []
         for i, file_path in tqdm(enumerate(self._file_paths), leave=False):
             with open(file_path) as f:
@@ -120,21 +123,31 @@ class PaperDataset(Dataset):
     def __len__(self):
         return len(self._file_paths)
 
+    def get_aug(aug_name):
+        if aug_name == 'wordnet':
+            return naw.SynonymAug(aug_src='wordnet', aug_min=5, aug_max=50, aug_p=0.1)
+        if aug_name == 'insert-glove':
+            return naw.WordEmbsAug(model_type='glove', action='insert', aug_max=None, aug_p=0.1)
+        if aug_name == 'substitute-glove':
+            return naw.WordEmbsAug(model_type='glove', action='substitute', aug_max=None, aug_p=0.1)
+        if aug_name == 'insert-word2vec':
+            return naw.WordEmbsAug(model_type='word2vec', action='insert', aug_max=None, aug_p=0.1)
+        if aug_name == 'substitute-word2vec':
+            return naw.WordEmbsAug(model_type='word2vec', action='substitute', aug_max=None, aug_p=0.1)
+
+
     def _augment(self, text):
-        wordnet_synonym_aug = naw.SynonymAug(aug_src='wordnet', aug_min=5,
-                                             aug_max=50, aug_p=0.1)
-
-        try:
-            text = wordnet_synonym_aug.augment(
-                text).replace(' - ', '-')
-        except Exception as e:
-            return text
-
+        for aug_name in self.dynamic_augmentations:
+            augmenter = self.get_aug(aug_name)
+            try:
+                text = augmenter.augment(text)
+            except Exception as e:
+                pass
+        text =  text.replace(' - ', '-') # fix weird tokenazation, do we want to do this?
         # print(augmented_text, text)
         return text
-
     def __getitem__(self, index):
         abstract = self.papers[index]['abstract']
-        if self.augment:
-            abstract = self._augment(abstract)
+
+        abstract = self._augment(abstract)
         return abstract, torch.tensor(self.papers[index]['accepted'])

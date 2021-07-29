@@ -14,7 +14,7 @@ def process_chunk(paths, gpu_idx, pos_idx, augmentation_name, batch_size):
     batch = []
     out_dir = f'./data/{augmentation_name}/'
     os.makedirs(out_dir, exist_ok=True)
-    for path in tqdm(paths, pos=pos_idx):
+    for path in tqdm(paths, position=pos_idx):
         filename = path.split('/')[-1]
         if os.path.exists(out_dir + filename):
             continue
