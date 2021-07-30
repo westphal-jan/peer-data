@@ -62,6 +62,9 @@ def get_out_dir_prefix(results_dir: Path, run_name: str) -> str:
     return prefix
 
 
+on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert',
+                'hyper-insert-distilbert', 'hyper-substitute-distilbert']
+
 @click.command()
 @click.pass_context
 @click.option('--workers', '-w', help="Number of workers", default=4, type=int)
@@ -74,10 +77,12 @@ def get_out_dir_prefix(results_dir: Path, run_name: str) -> str:
 @click.option('--results-dir', '-r', type=click.Path(writable=True, file_okay=False), default=Path("./results"))
 @click.option('--run-name', '-n', default=datetime.now().strftime('%d-%m-%Y_%H_%M_%S'))
 @click.option('--fast-dev', '--fd', is_flag=True)
-@click.option('--aug-datasets', '-a', multiple=True, help="specify the additional augmented datasets to use for training (e.g. -a=back-translations -a=insert-distilbert")
-@click.option('--dynamic-augmentations', '-da', multiple=True, type=click.Choice(['wordnet', 'insert-glove', 'substitute-glove', 'insert-word2vec', 'substitute-word2vec']), help="specify the additional 'on-the-fly' augmentations (e.g. -da=wordnet -da=insert-glove")
+@click.option('--aug-datasets', '-a', multiple=True, type=click.Choice(on_disk_agus), default=on_disk_agus,
+              help="specify the additional augmented datasets to use for training (e.g. -a=back-translations -a=insert-distilbert")
+@click.option('--dynamic-augmentations', '-da', multiple=True, type=click.Choice(['wordnet', 'insert-glove', 'substitute-glove', 'insert-word2vec', 'substitute-word2vec']),
+              help="specify the additional 'on-the-fly' augmentations (e.g. -da=wordnet -da=insert-glove")
 @click.option('--no-oversampling', is_flag=True)
-@click.option('--accepted-class-weight', type=float, help="weight of accepted class for binary cross entropy loss")
+@click.option('--accepted-class-weight', type=float, help="weight of accepted class for binary cross entropy loss", default=1.)
 
 def main(ctx, **cmd_args):
     cmd_args = process_click_args(ctx, cmd_args)

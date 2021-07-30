@@ -123,7 +123,7 @@ class PaperDataset(Dataset):
     def __len__(self):
         return len(self._file_paths)
 
-    def get_aug(aug_name):
+    def get_aug(self, aug_name):
         if aug_name == 'wordnet':
             return naw.SynonymAug(aug_src='wordnet', aug_min=5, aug_max=50, aug_p=0.1)
         if aug_name == 'insert-glove':
