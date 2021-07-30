@@ -127,14 +127,13 @@ class PaperDataset(Dataset):
         if aug_name == 'wordnet':
             return naw.SynonymAug(aug_src='wordnet', aug_min=5, aug_max=50, aug_p=0.1)
         if aug_name == 'insert-glove':
-            return naw.WordEmbsAug(model_type='glove', action='insert', aug_max=None, aug_p=0.1)
+            return naw.WordEmbsAug(model_type='glove', model_path="./embeddings/glove.6B.50d.txt", action='insert', aug_max=None, aug_p=0.1)
         if aug_name == 'substitute-glove':
-            return naw.WordEmbsAug(model_type='glove', action='substitute', aug_max=None, aug_p=0.1)
+            return naw.WordEmbsAug(model_type='glove',  model_path="./embeddings/glove.6B.50d.txt", action='substitute', aug_max=None, aug_p=0.1)
         if aug_name == 'insert-word2vec':
-            return naw.WordEmbsAug(model_type='word2vec', action='insert', aug_max=None, aug_p=0.1)
+            return naw.WordEmbsAug(model_type='word2vec', model_path="./embeddings/GoogleNews-vectors-negative300.bin", action='insert', aug_max=None, aug_p=0.1)
         if aug_name == 'substitute-word2vec':
-            return naw.WordEmbsAug(model_type='word2vec', action='substitute', aug_max=None, aug_p=0.1)
-
+            return naw.WordEmbsAug(model_type='word2vec', model_path="./embeddings/GoogleNews-vectors-negative300.bin", action='substitute', aug_max=None, aug_p=0.1)
 
     def _augment(self, text):
         for aug_name in self.dynamic_augmentations:
@@ -143,9 +142,11 @@ class PaperDataset(Dataset):
                 text = augmenter.augment(text)
             except Exception as e:
                 pass
-        text =  text.replace(' - ', '-') # fix weird tokenazation, do we want to do this?
+        # fix weird tokenazation, do we want to do this?
+        text = text.replace(' - ', '-')
         # print(augmented_text, text)
         return text
+
     def __getitem__(self, index):
         abstract = self.papers[index]['abstract']
 
