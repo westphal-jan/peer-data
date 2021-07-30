@@ -67,7 +67,7 @@ on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert
 
 @click.command()
 @click.pass_context
-@click.option('--workers', '-w', help="Number of workers", default=4, type=int)
+@click.option('--workers', '-w', help="Number of workers", default=16, type=int)
 @click.option('--epochs', '-e', help="Number of epochs to train", default=10, type=int)
 @click.option('--batch-size', '-b', help="Batch size per GPU", default=8, type=int)
 @click.option('--offline', help="Disable wandb online syncing", is_flag=True)
