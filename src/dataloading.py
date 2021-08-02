@@ -1,6 +1,7 @@
 from typing import List
 import nlpaug.augmenter.word as naw
 import nlpaug.augmenter.sentence as nas
+import nlpaug.flow as naf
 import pytorch_lightning as pl
 from torch.utils import data
 from torch.utils.data.dataloader import DataLoader
@@ -132,7 +133,7 @@ class PaperDataset(Dataset):
     def _init_augmentations(self):
         print("Initializing augmentation models....")
         self.augmentation_map = {
-            'wordnet': naw.SynonymAug(aug_src='wordnet', aug_min=5, aug_max=50, aug_p=0.1),
+            'wordnet': naw.SynonymAug(aug_src='wordnet', aug_min=5, aug_p=0.5),
             # 'insert-glove': naw.WordEmbsAug(model_type='glove', model_path="./embeddings/glove.6B.50d.txt", action='insert', aug_max=None, aug_p=0.1),
             # 'substitute-glove': naw.WordEmbsAug(model_type='glove',  model_path="./embeddings/glove.6B.50d.txt", action='substitute', aug_max=None, aug_p=0.1),
             # 'insert-word2vec': naw.WordEmbsAug(model_type='word2vec', model_path="./embeddings/GoogleNews-vectors-negative300.bin", action='insert', aug_max=None, aug_p=0.1),
@@ -145,7 +146,8 @@ class PaperDataset(Dataset):
         for aug_name in self.dynamic_augmentations:
             augmenter = self.augmentation_map.get(aug_name)
             try:
-                text = augmenter.augment(text)
+                if random.random() > 0.5:
+                    text = augmenter.augment(text)
             except Exception as e:
                 pass
         # fix weird tokenazation, do we want to do this?

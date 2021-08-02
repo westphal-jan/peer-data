@@ -36,6 +36,8 @@ class TransformerClassifier(pl.LightningModule):
                                                 num_classes=num_classes),
                                             precision=Precision(
                                                 num_classes=num_classes),
+                                            mcc=MatthewsCorrcoef(
+                                                num_classes=2)
                                             ))
         self.metrics = nn.ModuleDict(dict(_train=deepcopy(shared_metrics), # the `train` and `training` keywords cause an error with nn.ModuleDict
                                           val=deepcopy(shared_metrics),
