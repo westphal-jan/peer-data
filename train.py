@@ -110,7 +110,7 @@ def main(ctx, **cmd_args):
     wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=WANDB_PROJECT, experiment=wandb.run,
                                      entity=WANDB_ENTITY, job_type='train', log_model=False)
     checkpoint_callback = ModelCheckpoint(
-        dirpath=cmd_args.results_dir, every_n_val_epochs=1, filename="model-snaphot-latest")
+        dirpath=cmd_args.results_dir, every_n_val_epochs=1, filename="model-snaphot-best", monitor='val/f1', mode='max')
     # Initialize a trainer
     trainer = pl.Trainer(max_epochs=cmd_args.epochs,
                          progress_bar_refresh_rate=1,
