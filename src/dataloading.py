@@ -132,10 +132,10 @@ class PaperDataset(Dataset):
         print("Initializing augmentation models....")
         self.augmentation_map = {
             'wordnet': naw.SynonymAug(aug_src='wordnet', aug_min=5, aug_max=50, aug_p=0.1),
-            'insert-glove': naw.WordEmbsAug(model_type='glove', model_path="./embeddings/glove.6B.50d.txt", action='insert', aug_max=None, aug_p=0.1),
-            'substitute-glove': naw.WordEmbsAug(model_type='glove',  model_path="./embeddings/glove.6B.50d.txt", action='substitute', aug_max=None, aug_p=0.1),
-            'insert-word2vec': naw.WordEmbsAug(model_type='word2vec', model_path="./embeddings/GoogleNews-vectors-negative300.bin", action='insert', aug_max=None, aug_p=0.1),
-            'substitute-word2vec': naw.WordEmbsAug(model_type='word2vec', model_path="./embeddings/GoogleNews-vectors-negative300.bin", action='substitute', aug_max=None, aug_p=0.1)
+            # 'insert-glove': naw.WordEmbsAug(model_type='glove', model_path="./embeddings/glove.6B.50d.txt", action='insert', aug_max=None, aug_p=0.1),
+            # 'substitute-glove': naw.WordEmbsAug(model_type='glove',  model_path="./embeddings/glove.6B.50d.txt", action='substitute', aug_max=None, aug_p=0.1),
+            # 'insert-word2vec': naw.WordEmbsAug(model_type='word2vec', model_path="./embeddings/GoogleNews-vectors-negative300.bin", action='insert', aug_max=None, aug_p=0.1),
+            # 'substitute-word2vec': naw.WordEmbsAug(model_type='word2vec', model_path="./embeddings/GoogleNews-vectors-negative300.bin", action='substitute', aug_max=None, aug_p=0.1)
         }
         print("Finished initializing augmentation models....")
 
