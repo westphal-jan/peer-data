@@ -71,6 +71,7 @@ on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert
 @click.option('--epochs', '-e', help="Number of epochs to train", default=10, type=int)
 @click.option('--batch-size', '-b', help="Batch size per GPU", default=8, type=int)
 @click.option('--lr', help="Initial learning rate", default=2e-5, type=float)
+@click.option('--weight-decay', '--wd', help="Weight decay", default=0.01, type=float)
 @click.option('--offline', help="Disable wandb online syncing", is_flag=True)
 @click.option('--seed', help="Specify seed", type=int, default=None)
 @click.option('--gpus', '-g', type=int_sequence, cls=UnlimitedNargsOption, help="Specify the GPU indices to use. If `-1`, try to use all available GPUs. If omitted, use the CPU.")

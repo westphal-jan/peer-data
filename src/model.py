@@ -11,7 +11,7 @@ from copy import deepcopy
 
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 class TransformerClassifier(pl.LightningModule):
-    def __init__(self, lr=2e-5, num_classes=1, accepted_class_weight=1) -> None:
+    def __init__(self, lr=2e-5, num_classes=1, accepted_class_weight=1, weight_decay=0.01) -> None:
         super().__init__()
         self.save_hyperparameters()
    
@@ -108,7 +108,7 @@ class TransformerClassifier(pl.LightningModule):
         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
         optimizer_grouped_parameters = [
             {'params': [p for n, p in model_params if not any(
-                nd in n for nd in no_decay)], 'weight_decay': 0.01},
+                nd in n for nd in no_decay)], 'weight_decay': self.hparams.weight_decay},
             {'params': [p for n, p in model_params if any(
                 nd in n for nd in no_decay)], 'weight_decay': 0.0}
         ]
