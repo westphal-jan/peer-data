@@ -8,6 +8,8 @@ from sentence_transformers import SentenceTransformer
 import transformers
 import torch
 from copy import deepcopy
+
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 class TransformerClassifier(pl.LightningModule):
     def __init__(self, lr=2e-5, num_classes=1, accepted_class_weight=1) -> None:
         super().__init__()
@@ -110,4 +112,7 @@ class TransformerClassifier(pl.LightningModule):
             {'params': [p for n, p in model_params if any(
                 nd in n for nd in no_decay)], 'weight_decay': 0.0}
         ]
-        return transformers.AdamW(optimizer_grouped_parameters, lr=self.hparams.lr)
+        optimizer = transformers.AdamW(
+            optimizer_grouped_parameters, lr=self.hparams.lr)
+        # scheduler = CosineAnnealingWarmRestarts(optimizer, 2, eta_min=1e-8)
+        return {'optimizer': optimizer}

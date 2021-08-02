@@ -70,6 +70,7 @@ on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert
 @click.option('--workers', '-w', help="Number of workers", default=16, type=int)
 @click.option('--epochs', '-e', help="Number of epochs to train", default=10, type=int)
 @click.option('--batch-size', '-b', help="Batch size per GPU", default=8, type=int)
+@click.option('--lr', help="Initial learning rate", default=2e-5, type=float)
 @click.option('--offline', help="Disable wandb online syncing", is_flag=True)
 @click.option('--seed', help="Specify seed", type=int, default=None)
 @click.option('--gpus', '-g', type=int_sequence, cls=UnlimitedNargsOption, help="Specify the GPU indices to use. If `-1`, try to use all available GPUs. If omitted, use the CPU.")
@@ -92,7 +93,7 @@ def main(ctx, **cmd_args):
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
     model = TransformerClassifier(
-        accepted_class_weight=cmd_args.accepted_class_weight)
+        lr=cmd_args.lr, accepted_class_weight=cmd_args.accepted_class_weight)
     load_dotenv()
     if rank_zero_only.rank == 0:
         start_wandb_logging(cmd_args, model, WANDB_PROJECT)

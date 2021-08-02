@@ -32,6 +32,8 @@ class BasicDataModule(pl.LightningDataModule):
         self._file_paths = glob.glob(f"{self.data_dirs[0]}/*.json")
         complete_data = PaperDataset(
             self._file_paths, dynamic_augmentations=self.dynamic_augmentations)
+        complete_data_without_augs = PaperDataset(
+            self._file_paths, dynamic_augmentations=[])
         print(len(self._file_paths))
 
         # Get random index split for train/val/test.
@@ -47,7 +49,9 @@ class BasicDataModule(pl.LightningDataModule):
             f"Perform train/val/test split: train {train_len}, val {val_len}, test {len(test_idx)}")
 
         self.train_set, self.val_set, self.test_set = Subset(complete_data, train_idx), Subset(
-            complete_data, val_idx), Subset(complete_data, test_idx)
+            complete_data_without_augs, val_idx), Subset(complete_data_without_augs, test_idx)
+        print(self.train_set.dataset.dynamic_augmentations,
+              self.val_set.dataset.dynamic_augmentations)
 
         # We need to be careful and only train on augmentations of abstracts that are in the train set.
         for aug in self.augmentation_datasets:
@@ -66,9 +70,9 @@ class BasicDataModule(pl.LightningDataModule):
         labels = [label for abstract, label in self.train_set]
 
         # Sanity check
-        for i, (text, label) in enumerate(self.train_set):
-            if not label == labels[i]:
-                print(label, labels[i])
+        # for i, (text, label) in enumerate(self.train_set):
+        #     if not label == labels[i]:
+        #         print(label, labels[i])
         sampler = None
         if not self.no_oversampling:
             # Do oversampling of minority class
@@ -144,7 +148,7 @@ class PaperDataset(Dataset):
             except Exception as e:
                 pass
         # fix weird tokenazation, do we want to do this?
-        text = text.replace(' - ', '-')
+        # text = text.replace(' - ', '-')
         # print(augmented_text, text)
         return text
 
