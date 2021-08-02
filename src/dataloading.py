@@ -1,6 +1,5 @@
 from typing import List
 import nlpaug.augmenter.word as naw
-import nltk
 import nlpaug.augmenter.sentence as nas
 import pytorch_lightning as pl
 from torch.utils import data
@@ -38,7 +37,9 @@ class BasicDataModule(pl.LightningDataModule):
 
         # Get random index split for train/val/test.
         idx = list(range(len(self._file_paths)))
-        random.shuffle(idx)
+        # Get constant split across runs
+        rnd = np.random.RandomState(42)
+        rnd.shuffle(idx)
         total_len = len(idx)
         train_len, val_len = int(0.8*total_len), int(0.1*total_len)
         train_idx = idx[:train_len]
