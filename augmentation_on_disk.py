@@ -53,43 +53,46 @@ def augment(to_augment, augmentation, batch_size, pos_idx):
         augmented.extend(_augmented)
     return augmented
 
-
-def section_process_chunk(paths, gpu_idx, pos_idx, augmentation_name, appendix, batch_size):
+def section_process_chunk(paths, gpu_idx, pos_idx, augmentation_name, out_dir, batch_size):
     augmentation = get_augment(augmentation_name, gpu_idx, batch_size)
-    out_dir = f'./data/{augmentation_name}-{appendix}/' if appendix else f"./data/{augmentation_name}/"
-    os.makedirs(out_dir, exist_ok=True)
 
-    submissions = []
-    sections = []
     for path in tqdm(paths, position=pos_idx):
         with open(path, 'r') as f:
-            paper_json = json.load(f)
-            submissions.append(paper_json)
-            _sections = paper_json["pdf"]["metadata"]["sections"]
-            assert _sections
-            _sections = list(map(lambda x: x["text"], _sections))
-            sections.append(_sections)
-    
-    flattened_sections = np.hstack(sections).tolist()
-    # flattened_sections = [" ".join(s.split(" ")[:400]) for s in flattened_sections]
-    print(len(flattened_sections))
-    num_sections = list(map(len, sections))
-    idx = np.cumsum(num_sections)
-
-    augmented = augment(flattened_sections, augmentation, batch_size, gpu_idx)
-    augmented_sections = np.split(augmented, idx)
-    augmented_sections = [i.tolist() for i in augmented_sections if len(i)]
-    
-    for path, submission, aug_sections in zip(paths, submissions, augmented_sections):
-        _sections = submission["pdf"]["metadata"]["sections"]
-        assert len(_sections) == len(aug_sections)
-        for i in range(len(_sections)):
-            _sections[i]["text"] = aug_sections[i]
-        submission["pdf"]["metadata"]["sections"] = _sections
+            submission = json.load(f)
+        
+        sections = submission["pdf"]["metadata"]["sections"]
+        assert sections
+        text_sections = list(map(lambda x: x["text"], sections))
+        augmented_text_sections = augmentation.augment(text_sections)
+        
+        for i in range(len(sections)):
+            sections[i]["text"] = augmented_text_sections[i]
+        submission["pdf"]["metadata"]["sections"] = sections
 
         filename = path.split("/")[-1]
         with open(out_dir + filename, 'w') as f:
             json.dump(submission, f)
+
+    # flattened_sections = np.hstack(sections).tolist()
+    # # flattened_sections = [" ".join(s.split(" ")[:400]) for s in flattened_sections]
+    # print(len(flattened_sections))
+    # num_sections = list(map(len, sections))
+    # idx = np.cumsum(num_sections)
+
+    # augmented = augment(flattened_sections, augmentation, batch_size, gpu_idx)
+    # augmented_sections = np.split(augmented, idx)
+    # augmented_sections = [i.tolist() for i in augmented_sections if len(i)]
+    
+    # for path, submission, aug_sections in zip(paths, submissions, augmented_sections):
+    #     _sections = submission["pdf"]["metadata"]["sections"]
+    #     assert len(_sections) == len(aug_sections)
+    #     for i in range(len(_sections)):
+    #         _sections[i]["text"] = aug_sections[i]
+    #     submission["pdf"]["metadata"]["sections"] = _sections
+
+    #     filename = path.split("/")[-1]
+    #     with open(out_dir + filename, 'w') as f:
+    #         json.dump(submission, f)
 
 
 def get_augment(augmentation_name, gpu_idx, batch_size):
@@ -142,10 +145,19 @@ def chunker_list(seq, size):
 @click.option('--appendix', default="", type=str)
 @click.option('--filter-outcome', help="Filter paper by there acceptance state. True:Accepted, False:Rejected, Default:Both", default=None, type=bool)
 @click.option('--filter-file-path', default=None, type=str)
-def main(ctx, batch_size, gpus, augmentation, appendix, filter_outcome, filter_file_path):
+@click.option('--reuse', default=True, type=bool)
+def main(ctx, batch_size, gpus, augmentation, appendix, filter_outcome, filter_file_path, reuse):
     gpu_idxs = [int(gpu) for gpu in gpus.split(',')]
 
     paths = glob.glob(f"./data/original/*.json")
+
+    description = augmentation
+    if appendix:
+        description += f"-{appendix}"
+    if filter_outcome != None:
+        description += "-" + ("accepted" if filter_outcome else "rejected")
+    out_dir = f"data/{description}/"
+    os.makedirs(out_dir, exist_ok=True)
 
     if filter_file_path:
         with open(filter_file_path, "r") as f:
@@ -160,11 +172,20 @@ def main(ctx, batch_size, gpus, augmentation, appendix, filter_outcome, filter_f
         print(f"Outcome: Filtered from {len(paths)} to {len(filtered_paths)}")
         paths = filtered_paths
 
+    if reuse:
+        filtered_paths = [p for p in paths if not os.path.isfile(out_dir + p.split("/")[-1])]
+        print(f"Reuse: Filtered from {len(paths)} to {len(filtered_paths)}")
+        paths = filtered_paths
+
+    if len(paths) == 0:
+        print("No more files to augment")
+        return
+
     split_paths = chunker_list(paths, len(gpu_idxs))
     d_len = len(split_paths)
     with mp.Pool(len(gpu_idxs)) as pool:
         pool.starmap(section_process_chunk, zip(split_paths, gpu_idxs, list(range(len(gpu_idxs))), [
-                     augmentation]*d_len, [appendix]*d_len, [batch_size]*d_len))
+                     augmentation]*d_len, [out_dir]*d_len, [batch_size]*d_len))
 
         # print(abstract, '\n\n', backtrans)
 
