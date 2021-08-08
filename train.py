@@ -86,6 +86,8 @@ on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert
               help="specify the additional 'on-the-fly' augmentations (e.g. -da=wordnet -da=insert-glove")
 @click.option('--no-oversampling', is_flag=True)
 @click.option('--accepted-class-weight', type=float, help="weight of accepted class for binary cross entropy loss", default=1.)
+@click.option('--wandb-project', default=WANDB_PROJECT)
+
 
 def main(ctx, **cmd_args):
     cmd_args = process_click_args(ctx, cmd_args)
@@ -98,7 +100,7 @@ def main(ctx, **cmd_args):
         lr=cmd_args.lr, accepted_class_weight=cmd_args.accepted_class_weight, weight_decay=cmd_args.weight_decay, dropout_p=cmd_args.dropout_p)
     load_dotenv()
     if rank_zero_only.rank == 0:
-        start_wandb_logging(cmd_args, model, WANDB_PROJECT)
+        start_wandb_logging(cmd_args, model, cmd_args.wandb_project)
         uniquify_prefix = get_out_dir_prefix(cmd_args.results_dir, cmd_args.run_name)
         cmd_args.results_dir = cmd_args.results_dir / (uniquify_prefix + cmd_args.run_name)
         assert not os.path.exists(cmd_args.results_dir)
@@ -108,7 +110,7 @@ def main(ctx, **cmd_args):
     dm = BasicDataModule(
         data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size, ddp=cmd_args.accelerator == "ddp", augmentation_datasets=cmd_args.aug_datasets, dynamic_augmentations=cmd_args.dynamic_augmentations, no_oversampling=cmd_args.no_oversampling)
 
-    wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=WANDB_PROJECT, experiment=wandb.run,
+    wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=cmd_args.wandb_project, experiment=wandb.run,
                                      entity=WANDB_ENTITY, job_type='train', log_model=False)
     checkpoint_callback = ModelCheckpoint(
         dirpath=cmd_args.results_dir, every_n_val_epochs=1, filename="model-snaphot-best", monitor='val/f1', mode='max')

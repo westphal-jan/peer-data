@@ -60,8 +60,8 @@ def get_augment(augmentation_name, gpu_idx, batch_size):
                                       )
 
 
-def chunker_list(seq, size):
-    return list((seq[i::size] for i in range(size)))
+def split_list_into_chunks(seq, num_chunks):
+    return list((seq[i::num_chunks] for i in range(num_chunks)))
 
 
 @click.command()
@@ -73,7 +73,7 @@ def main(ctx, batch_size, gpus, augmentation):
     gpu_idxs = [int(gpu) for gpu in gpus.split(',')]
 
     paths = glob.glob(f"./data/original/*.json")
-    split_paths = chunker_list(paths, len(gpu_idxs))
+    split_paths = split_list_into_chunks(paths, len(gpu_idxs))
     d_len = len(split_paths)
     with mp.Pool(len(gpu_idxs)) as pool:
         pool.starmap(process_chunk, zip(split_paths, gpu_idxs, list(range(len(gpu_idxs))), [
