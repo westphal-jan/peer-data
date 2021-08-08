@@ -1,3 +1,4 @@
+from numpy import true_divide
 from sentence_transformers.util import batch_to_device
 from torch import Tensor
 from torchmetrics.classification.stat_scores import StatScores
@@ -10,8 +11,11 @@ import torch
 from copy import deepcopy
 
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+
+from .helpers import F1Loss
+
 class TransformerClassifier(pl.LightningModule):
-    def __init__(self, lr=2e-5, num_classes=1, accepted_class_weight=1, weight_decay=0.01, dropout_p=0, simple_linear_layer=False) -> None:
+    def __init__(self, lr=2e-5, num_classes=1, accepted_class_weight=1, weight_decay=0.01, dropout_p=0, simple_linear_layer=False, f1_loss=False) -> None:
         super().__init__()
         self.save_hyperparameters()
    
@@ -34,7 +38,8 @@ class TransformerClassifier(pl.LightningModule):
 
         extra_weight_on_accepted = tensor(accepted_class_weight)
         self.loss = nn.BCEWithLogitsLoss(pos_weight=extra_weight_on_accepted)
-        # self.loss = F1Loss()
+        if f1_loss is True:
+            self.loss = F1Loss()
 
         shared_metrics = nn.ModuleDict(dict(accuracy=Accuracy(num_classes=num_classes),
                                             f1=F1(num_classes=num_classes),

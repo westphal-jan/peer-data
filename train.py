@@ -72,7 +72,7 @@ on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert
 @click.option('--batch-size', '-b', help="Batch size per GPU", default=8, type=int)
 @click.option('--lr', help="Initial learning rate", default=2e-5, type=float)
 @click.option('--weight-decay', '--wd', help="Weight decay", default=0.01, type=float)
-@click.option('--dropout-p', help="Dropout probability for classifier layers", default=0, type=float)
+@click.option('--dropout-p', help="Dropout probability for classifier layers", default=0., type=float)
 @click.option('--offline', help="Disable wandb online syncing", is_flag=True)
 @click.option('--seed', help="Specify seed", type=int, default=None)
 @click.option('--gpus', '-g', type=int_sequence, cls=UnlimitedNargsOption, help="Specify the GPU indices to use. If `-1`, try to use all available GPUs. If omitted, use the CPU.")
@@ -87,6 +87,8 @@ on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert
 @click.option('--no-oversampling', is_flag=True)
 @click.option('--accepted-class-weight', type=float, help="weight of accepted class for binary cross entropy loss", default=1.)
 @click.option('--simple-linear-layer', is_flag=True)
+@click.option('--f1-loss', is_flag=True)
+
 @click.option('--wandb-project', default=WANDB_PROJECT)
 
 
@@ -99,7 +101,7 @@ def main(ctx, **cmd_args):
 
     model = TransformerClassifier(
         lr=cmd_args.lr, accepted_class_weight=cmd_args.accepted_class_weight, weight_decay=cmd_args.weight_decay, dropout_p=cmd_args.dropout_p,
-        simple_linear_layer=cmd_args.simple_linear_layer)
+        simple_linear_layer=cmd_args.simple_linear_layer, f1_loss=cmd_args.f1_loss)
     load_dotenv()
     if rank_zero_only.rank == 0:
         start_wandb_logging(cmd_args, model, cmd_args.wandb_project)
@@ -109,8 +111,8 @@ def main(ctx, **cmd_args):
         os.makedirs(cmd_args.results_dir, exist_ok=True)
         print(cmd_args)
 
-    if len(cmd_args.augmentation_datasets) == 1 and cmd_args.augmentation_datasets[0] == "none":
-        cmd_args.augmentation_datasets = []
+    if len(cmd_args.aug_datasets) == 1 and cmd_args.aug_datasets[0] == 'none':
+        cmd_args.aug_datasets = []
     dm = BasicDataModule(
         data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size, ddp=cmd_args.accelerator == "ddp", augmentation_datasets=cmd_args.aug_datasets, dynamic_augmentations=cmd_args.dynamic_augmentations, no_oversampling=cmd_args.no_oversampling)
 
