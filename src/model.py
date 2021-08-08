@@ -20,9 +20,11 @@ class TransformerClassifier(pl.LightningModule):
         # print(self.transformer)
 
         self.classifier = nn.Sequential(
-            nn.Linear(768, 334),
             nn.Dropout(p=dropout_p),
+            nn.Linear(768, 334),
             nn.ReLU(),
+
+            nn.Dropout(p=dropout_p),
             nn.Linear(334, 1),
         )
         # self.classifier = nn.Linear(768, 1)
