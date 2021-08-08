@@ -80,12 +80,13 @@ on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert
 @click.option('--results-dir', '-r', type=click.Path(writable=True, file_okay=False), default=Path("./results"))
 @click.option('--run-name', '-n', default=datetime.now().strftime('%d-%m-%Y_%H_%M_%S'))
 @click.option('--fast-dev', '--fd', is_flag=True)
-@click.option('--aug-datasets', '-a', multiple=True, type=click.Choice(on_disk_agus), default=on_disk_agus,
+@click.option('--aug-datasets', '-a', multiple=True, type=click.Choice(on_disk_agus + ['none']), default=on_disk_agus,
               help="specify the additional augmented datasets to use for training (e.g. -a=back-translations -a=insert-distilbert")
 @click.option('--dynamic-augmentations', '-da', multiple=True, type=click.Choice(['wordnet', 'insert-glove', 'substitute-glove', 'insert-word2vec', 'substitute-word2vec']),
               help="specify the additional 'on-the-fly' augmentations (e.g. -da=wordnet -da=insert-glove")
 @click.option('--no-oversampling', is_flag=True)
 @click.option('--accepted-class-weight', type=float, help="weight of accepted class for binary cross entropy loss", default=1.)
+@click.option('--simple-linear-layer', is_flag=True)
 @click.option('--wandb-project', default=WANDB_PROJECT)
 
 
@@ -97,7 +98,8 @@ def main(ctx, **cmd_args):
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
     model = TransformerClassifier(
-        lr=cmd_args.lr, accepted_class_weight=cmd_args.accepted_class_weight, weight_decay=cmd_args.weight_decay, dropout_p=cmd_args.dropout_p)
+        lr=cmd_args.lr, accepted_class_weight=cmd_args.accepted_class_weight, weight_decay=cmd_args.weight_decay, dropout_p=cmd_args.dropout_p,
+        simple_linear_layer=cmd_args.simple_linear_layer)
     load_dotenv()
     if rank_zero_only.rank == 0:
         start_wandb_logging(cmd_args, model, cmd_args.wandb_project)
@@ -107,6 +109,8 @@ def main(ctx, **cmd_args):
         os.makedirs(cmd_args.results_dir, exist_ok=True)
         print(cmd_args)
 
+    if len(cmd_args.augmentation_datasets) == 1 and cmd_args.augmentation_datasets[0] == "none":
+        cmd_args.augmentation_datasets = []
     dm = BasicDataModule(
         data_dirs=cmd_args.datasets, workers=cmd_args.workers, batch_size=cmd_args.batch_size, ddp=cmd_args.accelerator == "ddp", augmentation_datasets=cmd_args.aug_datasets, dynamic_augmentations=cmd_args.dynamic_augmentations, no_oversampling=cmd_args.no_oversampling)
 

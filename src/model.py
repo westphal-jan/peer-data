@@ -11,7 +11,7 @@ from copy import deepcopy
 
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 class TransformerClassifier(pl.LightningModule):
-    def __init__(self, lr=2e-5, num_classes=1, accepted_class_weight=1, weight_decay=0.01, dropout_p=0) -> None:
+    def __init__(self, lr=2e-5, num_classes=1, accepted_class_weight=1, weight_decay=0.01, dropout_p=0, simple_linear_layer=False) -> None:
         super().__init__()
         self.save_hyperparameters()
    
@@ -23,11 +23,14 @@ class TransformerClassifier(pl.LightningModule):
             nn.Dropout(p=dropout_p),
             nn.Linear(768, 334),
             nn.ReLU(),
-
             nn.Dropout(p=dropout_p),
             nn.Linear(334, 1),
         )
-        # self.classifier = nn.Linear(768, 1)
+        if simple_linear_layer is True:
+            self.classifier = nn.Sequential(
+                nn.Dropout(p=dropout_p),
+                nn.Linear(768, 1),
+            )
 
         extra_weight_on_accepted = tensor(accepted_class_weight)
         self.loss = nn.BCEWithLogitsLoss(pos_weight=extra_weight_on_accepted)
