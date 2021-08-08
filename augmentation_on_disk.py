@@ -24,6 +24,9 @@ def process_chunk(paths, gpu_idx, pos_idx, augmentation_name, batch_size):
             batch.append((paper_json, filename))
         if len(batch) == batch_size:
             abstracts = [paper["review"]["abstract"] for paper, _ in batch]
+            if augmentation_name == 'sentence-gpt':
+                abstracts = [".".join(abstract.split('.')[:2])
+                             for abstract in abstracts]
 
             augmented_abstracts = augmentation.augment(abstracts)
 
@@ -51,6 +54,11 @@ def get_augment(augmentation_name, gpu_idx, batch_size):
         return naw.ContextualWordEmbsAug(model_path='distilbert-base-uncased', aug_p=0.1, aug_max=None, action='insert', **extra_kwargs)
     if augmentation_name == "hyper-insert-distilbert":
         return naw.ContextualWordEmbsAug(model_path='distilbert-base-uncased', aug_p=0.3, aug_max=None, action='insert', **extra_kwargs)
+    if augmentation_name == "substitute-glove":
+        return naw.WordEmbsAug(model_type='glove', model_path="./embeddings/glove.6B.50d.txt", action='substitute', aug_max=None, aug_p=0.5)
+    if augmentation_name == "insert-glove":
+        naw.WordEmbsAug(model_type='glove',  model_path="./embeddings/glove.6B.50d.txt",
+                        action='insert', aug_max=None, aug_p=0.5)
     if augmentation_name == "sentence-gpt":
         return nas.ContextualWordEmbsForSentenceAug(model_path='distilgpt2', max_length=512, **extra_kwargs)
     if augmentation_name == "back-translations":

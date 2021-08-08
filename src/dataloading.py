@@ -42,7 +42,7 @@ class BasicDataModule(pl.LightningDataModule):
         rnd = np.random.RandomState(42)
         rnd.shuffle(idx)
         total_len = len(idx)
-        train_len, val_len = int(0.8*total_len), int(0.1*total_len)
+        train_len, val_len = int(0.7*total_len), int(0.15*total_len)
         train_idx = idx[:train_len]
         val_idx = idx[train_len:(train_len + val_len)]
         test_idx = idx[(train_len + val_len):]

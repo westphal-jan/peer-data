@@ -63,7 +63,7 @@ def get_out_dir_prefix(results_dir: Path, run_name: str) -> str:
 
 
 on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert',
-                'hyper-insert-distilbert', 'hyper-substitute-distilbert']
+                'hyper-insert-distilbert', 'hyper-substitute-distilbert', 'sentence-gpt']
 
 @click.command()
 @click.pass_context
