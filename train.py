@@ -1,4 +1,5 @@
 from datetime import datetime
+from glob import glob
 
 from pytorch_lightning.utilities.distributed import rank_zero_only
 from klib.misc import push_file_to_wandb
@@ -50,16 +51,13 @@ def start_wandb_logging(cfg, model, project):
         wandb.watch(model, log="all", log_freq=200)
 
 
-def get_out_dir_prefix(results_dir: Path, run_name: str) -> str:
-    prefix = ""
-    if os.path.isdir(results_dir / run_name):
-        associated_run_dirs = [x for x in os.listdir(results_dir) if os.path.isdir(
-            os.path.join(results_dir, x) and run_name in x)]
-        prev_run_ids = [re.match(r'^\d+', x) for x in associated_run_dirs]
-        prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
-        cur_run_id = max(prev_run_ids, default=-1) + 1
-        prefix = f"{cur_run_id}-"
-    return prefix
+def prefixify_run_dir(results_dir: Path, run_name: str):
+    if not os.path.isdir(results_dir / run_name):
+        return results_dir / run_name
+    prefix_number = 1
+    while os.path.isdir(results_dir / f"{prefix_number}-{run_name}"):
+        prefix_number += 1
+    return results_dir / f"{prefix_number}-{run_name}"
 
 
 on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert',
@@ -88,6 +86,7 @@ on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert
 @click.option('--accepted-class-weight', type=float, help="weight of accepted class for binary cross entropy loss", default=1.)
 @click.option('--simple-linear-layer', is_flag=True)
 @click.option('--f1-loss', is_flag=True)
+@click.option('--test', is_flag=True)
 
 @click.option('--wandb-project', default=WANDB_PROJECT)
 
@@ -105,8 +104,8 @@ def main(ctx, **cmd_args):
     load_dotenv()
     if rank_zero_only.rank == 0:
         start_wandb_logging(cmd_args, model, cmd_args.wandb_project)
-        uniquify_prefix = get_out_dir_prefix(cmd_args.results_dir, cmd_args.run_name)
-        cmd_args.results_dir = cmd_args.results_dir / (uniquify_prefix + cmd_args.run_name)
+        cmd_args.results_dir = prefixify_run_dir(
+            cmd_args.results_dir, cmd_args.run_name)
         assert not os.path.exists(cmd_args.results_dir)
         os.makedirs(cmd_args.results_dir, exist_ok=True)
         print(cmd_args)
@@ -119,7 +118,7 @@ def main(ctx, **cmd_args):
     wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=cmd_args.wandb_project, experiment=wandb.run,
                                      entity=WANDB_ENTITY, job_type='train', log_model=False)
     checkpoint_callback = ModelCheckpoint(
-        dirpath=cmd_args.results_dir, every_n_val_epochs=1, filename="model-snaphot-best", monitor='val/f1', mode='max')
+        dirpath=cmd_args.results_dir, every_n_val_epochs=1, filename="model-snaphot-best-epoch-{epoch}-loss-{val/loss:.2f}-f1-{val/f1:.2f}", monitor='val/loss', mode='min', auto_insert_metric_name=False)
     # Initialize a trainer
     trainer = pl.Trainer(max_epochs=cmd_args.epochs,
                          progress_bar_refresh_rate=1,
@@ -135,8 +134,12 @@ def main(ctx, **cmd_args):
 
     trainer.fit(model, dm)
     if rank_zero_only.rank == 0:
-        push_file_to_wandb(f"{str(cmd_args.results_dir)}/model-snaphot-latest.ckpt")
-    trainer.test(model=model, datamodule=dm, ckpt_path=None)
+        push_file_to_wandb(
+            f"{str(cmd_args.results_dir)}/model-snaphot-latest*.ckpt")
+        if cmd_args.test:
+            best_path = glob( f"{str(cmd_args.results_dir)}/model-snaphot-latest*.ckpt")
+            print(best_path)
+            trainer.test(datamodule=dm, ckpt_path=best_path[0])
 
 
 if __name__ == '__main__':
