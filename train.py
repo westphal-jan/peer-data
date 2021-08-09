@@ -1,3 +1,4 @@
+import torch
 from datetime import datetime
 from glob import glob
 
@@ -51,17 +52,18 @@ def start_wandb_logging(cfg, model, project):
         wandb.watch(model, log="all", log_freq=200)
 
 
-def prefixify_run_dir(results_dir: Path, run_name: str):
+def postfixify_run_dir(results_dir: Path, run_name: str):
     if not os.path.isdir(results_dir / run_name):
         return results_dir / run_name
-    prefix_number = 1
-    while os.path.isdir(results_dir / f"{prefix_number}-{run_name}"):
-        prefix_number += 1
-    return results_dir / f"{prefix_number}-{run_name}"
+    postfix_number = 1
+    while os.path.isdir(results_dir / f"{run_name}-{postfix_number}"):
+        postfix_number += 1
+    return results_dir / f"{run_name}-{postfix_number}"
 
 
 on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert',
                 'hyper-insert-distilbert', 'hyper-substitute-distilbert', 'sentence-gpt']
+
 
 @click.command()
 @click.pass_context
@@ -87,10 +89,7 @@ on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert
 @click.option('--simple-linear-layer', is_flag=True)
 @click.option('--f1-loss', is_flag=True)
 @click.option('--test', is_flag=True)
-
 @click.option('--wandb-project', default=WANDB_PROJECT)
-
-
 def main(ctx, **cmd_args):
     cmd_args = process_click_args(ctx, cmd_args)
 
@@ -104,7 +103,7 @@ def main(ctx, **cmd_args):
     load_dotenv()
     if rank_zero_only.rank == 0:
         start_wandb_logging(cmd_args, model, cmd_args.wandb_project)
-        cmd_args.results_dir = prefixify_run_dir(
+        cmd_args.results_dir = postfixify_run_dir(
             cmd_args.results_dir, cmd_args.run_name)
         assert not os.path.exists(cmd_args.results_dir)
         os.makedirs(cmd_args.results_dir, exist_ok=True)
@@ -118,7 +117,7 @@ def main(ctx, **cmd_args):
     wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=cmd_args.wandb_project, experiment=wandb.run,
                                      entity=WANDB_ENTITY, job_type='train', log_model=False)
     checkpoint_callback = ModelCheckpoint(
-        dirpath=cmd_args.results_dir, every_n_val_epochs=1, filename="model-snaphot-best-epoch-{epoch}-loss-{val/loss:.2f}-f1-{val/f1:.2f}", monitor='val/loss', mode='min', auto_insert_metric_name=False)
+        dirpath=cmd_args.results_dir, every_n_val_epochs=1, filename="model-snaphot-best-epoch-{epoch}-loss-{val/loss:.2f}-f1-{val/f1:.2f}", monitor='val/f1', mode='max', auto_insert_metric_name=False)
     # Initialize a trainer
     trainer = pl.Trainer(max_epochs=cmd_args.epochs,
                          progress_bar_refresh_rate=1,
@@ -136,10 +135,19 @@ def main(ctx, **cmd_args):
     if rank_zero_only.rank == 0:
         push_file_to_wandb(
             f"{str(cmd_args.results_dir)}/model-snaphot-latest*.ckpt")
-        if cmd_args.test:
-            best_path = glob( f"{str(cmd_args.results_dir)}/model-snaphot-latest*.ckpt")
-            print(best_path)
-            trainer.test(datamodule=dm, ckpt_path=best_path[0])
+    if cmd_args.test:
+        torch.distributed.destroy_process_group()
+        if trainer.global_rank == 0:
+            best_model = TransformerClassifier.load_from_checkpoint(
+                checkpoint_callback.best_model_path)
+            trainer = pl.Trainer(
+                         gpus=1,
+                         logger=wandb_logger,
+                         benchmark=not manual_seed_specified,
+                         deterministic=manual_seed_specified,
+                         fast_dev_run=cmd_args.fast_dev)
+            trainer.test(model=best_model,
+                         datamodule=dm, ckpt_path=None)
 
 
 if __name__ == '__main__':
