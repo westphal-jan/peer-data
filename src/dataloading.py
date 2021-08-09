@@ -30,42 +30,57 @@ class BasicDataModule(pl.LightningDataModule):
 
     def setup(self, stage):
         self._file_paths = glob.glob(f"{self.data_dirs[0]}/*.json")
-        complete_data = PaperDataset(
-            self._file_paths, dynamic_augmentations=self.dynamic_augmentations)
-        complete_data_without_augs = PaperDataset(
-            self._file_paths, dynamic_augmentations=[])
-        print(len(self._file_paths))
+        with open('./data/train.txt', 'r') as f:
+            self._train_names = f.read().splitlines()
+        with open('./data/val.txt', 'r') as f:
+            self._val_names = f.read().splitlines()
+        with open('./data/test.txt', 'r') as f:
+            self._test_names = f.read().splitlines()
 
-        # Get random index split for train/val/test.
-        idx = list(range(len(self._file_paths)))
-        # Get constant split across runs
-        rnd = np.random.RandomState(42)
-        rnd.shuffle(idx)
-        total_len = len(idx)
-        train_len, val_len = int(0.7*total_len), int(0.15*total_len)
-        train_idx = idx[:train_len]
-        val_idx = idx[train_len:(train_len + val_len)]
-        test_idx = idx[(train_len + val_len):]
+        original_train_paths = [
+            f"./data/original/{file_name}" for file_name in self._train_names]
+        original_val_paths = [
+            f"./data/original/{file_name}" for file_name in self._val_names]
+        original_test_paths = [
+            f"./data/original/{file_name}" for file_name in self._test_names]
 
-        print(
-            f"Perform train/val/test split: train {train_len}, val {val_len}, test {len(test_idx)}")
+        # complete_data = PaperDataset(
+        #     self._file_paths, dynamic_augmentations=self.dynamic_augmentations)
+        # complete_data_without_augs = PaperDataset(
+        #     self._file_paths, dynamic_augmentations=[])
+        # print(len(self._file_paths))
 
-        self.train_set, self.val_set, self.test_set = Subset(complete_data, train_idx), Subset(
-            complete_data_without_augs, val_idx), Subset(complete_data_without_augs, test_idx)
-        print(self.train_set.dataset.dynamic_augmentations,
-              self.val_set.dataset.dynamic_augmentations)
+        # # Get random index split for train/val/test.
+        # idx = list(range(len(self._file_paths)))
+        # # Get constant split across runs
+        # rnd = np.random.RandomState(42069)
+        # rnd.shuffle(idx)
+        # total_len = len(idx)
+        # train_len, val_len = int(0.7*total_len), int(0.15*total_len)
+        # train_idx = idx[:train_len]
+        # val_idx = idx[train_len:(train_len + val_len)]
+        # test_idx = idx[(train_len + val_len):]
+
+        # print(
+        #     f"Perform train/val/test split: train {train_len}, val {val_len}, test {len(test_idx)}")
+
+        self.train_set = PaperDataset(original_train_paths, dynamic_augmentations=self.dynamic_augmentations)
+        self.val_set = PaperDataset(original_val_paths)
+        self.test_set = PaperDataset(original_test_paths)
 
         # We need to be careful and only train on augmentations of abstracts that are in the train set.
         for aug in self.augmentation_datasets:
             print("Using augmentation dataset", aug)
-            backtranslation_paths = glob.glob(
-                f"./data/{aug}/*.json")
+            # backtranslation_paths = glob.glob(
+            #     f"./data/{aug}/*.json")
+            augmentation_paths = [
+                f"./data/{aug}/{train_file_name}" for train_file_name in self._train_names]
             # print(backtranslation_paths[:10], self._file_paths[:10])
-            aug_data = PaperDataset(
-                backtranslation_paths, dynamic_augmentations=self.dynamic_augmentations)
-            aug_train_set = Subset(aug_data, train_idx)
+            aug_train_set = PaperDataset(
+                augmentation_paths, dynamic_augmentations=self.dynamic_augmentations)
+            # aug_train_set = Subset(aug_data, train_idx)
             self.train_set = ConcatDataset([self.train_set, aug_train_set])
-
+        print("Original files distributions: Train:", len(original_train_paths), "val", len(original_val_paths), "test", len(original_test_paths))
         print("Train set len", len(self.train_set))
 
     def train_dataloader(self) -> DataLoader:
@@ -80,9 +95,6 @@ class BasicDataModule(pl.LightningDataModule):
             # Do oversampling of minority class
             number_rejected, number_accepted = np.bincount(labels)
             print("Accepted:", number_accepted, "Rejected:", number_rejected)
-
-            sampler = None
-
             if number_rejected > number_accepted:
                 class_weights = (1, number_rejected / number_accepted)
                 minority_class = "Accepted papers"
