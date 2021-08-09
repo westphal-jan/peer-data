@@ -9,6 +9,17 @@ import click
 import multiprocessing as mp
 
 
+def sentence_gpt_truncate(abstracts):
+    trunc_abstracts = []
+    for abstract in abstracts:
+        split_sen = abstract.split('.')
+        if len(split_sen) >= 3:
+            trunc_abstracts.append(".".join(split_sen[:3]))
+            continue
+        else:
+            trunc_abstracts.append(abstract)
+    return trunc_abstracts
+
 def process_chunk(paths, gpu_idx, pos_idx, augmentation_name, batch_size):
     augmentation = get_augment(augmentation_name, gpu_idx, batch_size)
     batch = []
@@ -25,8 +36,7 @@ def process_chunk(paths, gpu_idx, pos_idx, augmentation_name, batch_size):
         if len(batch) == batch_size:
             abstracts = [paper["review"]["abstract"] for paper, _ in batch]
             if augmentation_name == 'sentence-gpt':
-                abstracts = [".".join(abstract.split('.')[:2])
-                             for abstract in abstracts]
+                abstracts = sentence_gpt_truncate(abstracts)
 
             augmented_abstracts = augmentation.augment(abstracts)
 
@@ -37,6 +47,9 @@ def process_chunk(paths, gpu_idx, pos_idx, augmentation_name, batch_size):
             batch = []
     if len(batch) > 0:
         abstracts = [paper["review"]["abstract"] for paper, _ in batch]
+        if augmentation_name == 'sentence-gpt':
+            abstracts = sentence_gpt_truncate(abstracts)
+
         augmented_abstracts = augmentation.augment(abstracts)
         for i, (paper, filename) in enumerate(batch):
             paper['review']['abstract'] = augmented_abstracts[i]
@@ -57,8 +70,8 @@ def get_augment(augmentation_name, gpu_idx, batch_size):
     if augmentation_name == "substitute-glove":
         return naw.WordEmbsAug(model_type='glove', model_path="./embeddings/glove.6B.50d.txt", action='substitute', aug_max=None, aug_p=0.5)
     if augmentation_name == "insert-glove":
-        naw.WordEmbsAug(model_type='glove',  model_path="./embeddings/glove.6B.50d.txt",
-                        action='insert', aug_max=None, aug_p=0.5)
+        return naw.WordEmbsAug(model_type='glove',  model_path="./embeddings/glove.6B.50d.txt",
+                               action='insert', aug_max=None, aug_p=0.5)
     if augmentation_name == "sentence-gpt":
         return nas.ContextualWordEmbsForSentenceAug(model_path='distilgpt2', max_length=512, **extra_kwargs)
     if augmentation_name == "back-translations":
