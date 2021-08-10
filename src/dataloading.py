@@ -53,7 +53,7 @@ class BasicDataModule(pl.LightningDataModule):
         # # Get random index split for train/val/test.
         # idx = list(range(len(self._file_paths)))
         # # Get constant split across runs
-        # rnd = np.random.RandomState(42069)
+        # rnd = np.random.RandomState(42)
         # rnd.shuffle(idx)
         # total_len = len(idx)
         # train_len, val_len = int(0.7*total_len), int(0.15*total_len)
@@ -84,7 +84,8 @@ class BasicDataModule(pl.LightningDataModule):
         print("Train set len", len(self.train_set))
 
     def train_dataloader(self) -> DataLoader:
-        labels = [label for abstract, label in self.train_set]
+        labels = [label for abstract, label in tqdm(
+            self.train_set, leave=False, desc="preparing train set...")]
 
         # Sanity check
         # for i, (text, label) in enumerate(self.train_set):
@@ -110,13 +111,13 @@ class BasicDataModule(pl.LightningDataModule):
 
             if self.ddp:
                 sampler = DistributedSamplerWrapper(sampler)
-        return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.workers, sampler=sampler, pin_memory=True)
+        return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.workers, sampler=sampler)
 
     def val_dataloader(self) -> DataLoader:
-        return DataLoader(self.val_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
+        return DataLoader(self.val_set, batch_size=self.batch_size, num_workers=self.workers)
 
     def test_dataloader(self) -> DataLoader:
-        return DataLoader(self.test_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
+        return DataLoader(self.test_set, batch_size=self.batch_size, num_workers=self.workers)
 
 
 # # Synonym Augmenter

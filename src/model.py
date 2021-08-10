@@ -77,13 +77,13 @@ class TransformerClassifier(pl.LightningModule):
         confusion_metric = self.confusions[step_type]
         confusion_matrix = confusion_metric(predictions, labels)
         self.log(f"{step_type}/TP",
-                 confusion_matrix[0], on_epoch=True, on_step=False, reduce_fx=torch.sum)
+                 confusion_matrix[0], on_epoch=True, on_step=False)
         self.log(f"{step_type}/FP",
-                 confusion_matrix[1], on_epoch=True, on_step=False, reduce_fx=torch.sum)
+                 confusion_matrix[1], on_epoch=True, on_step=False)
         self.log(f"{step_type}/TN",
-                 confusion_matrix[2], on_epoch=True, on_step=False, reduce_fx=torch.sum)
+                 confusion_matrix[2], on_epoch=True, on_step=False)
         self.log(f"{step_type}/FN",
-                 confusion_matrix[3], on_epoch=True, on_step=False, reduce_fx=torch.sum)
+                 confusion_matrix[3], on_epoch=True, on_step=False)
 
     def _step(self, step_type: str, batch):
         data, labels = batch
