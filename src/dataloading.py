@@ -53,7 +53,7 @@ class BasicDataModule(pl.LightningDataModule):
         # # Get random index split for train/val/test.
         # idx = list(range(len(self._file_paths)))
         # # Get constant split across runs
-        # rnd = np.random.RandomState(42069)
+        # rnd = np.random.RandomState(42)
         # rnd.shuffle(idx)
         # total_len = len(idx)
         # train_len, val_len = int(0.7*total_len), int(0.15*total_len)
@@ -84,7 +84,8 @@ class BasicDataModule(pl.LightningDataModule):
         print("Train set len", len(self.train_set))
 
     def train_dataloader(self) -> DataLoader:
-        labels = [label for abstract, label in self.train_set]
+        labels = [label for abstract, label in tqdm(
+            self.train_set, leave=False, desc="preparing train set...")]
 
         # Sanity check
         # for i, (text, label) in enumerate(self.train_set):
