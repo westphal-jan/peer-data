@@ -62,8 +62,9 @@ def postfixify_run_dir(results_dir: Path, run_name: str):
 
 
 on_disk_agus = ['back-translations', 'insert-distilbert', 'substitute-distilbert',
-                'hyper-insert-distilbert', 'hyper-substitute-distilbert', 'sentence-gpt']
+                'hyper-insert-distilbert', 'hyper-substitute-distilbert']
 
+on_disk_agus = on_disk_agus + ['sentence-gpt', 'insert-glove', 'substitute-glove']
 
 @click.command()
 @click.pass_context
@@ -117,7 +118,7 @@ def main(ctx, **cmd_args):
     wandb_logger = CustomWandbLogger(name=cmd_args.run_name, project=cmd_args.wandb_project, experiment=wandb.run,
                                      entity=WANDB_ENTITY, job_type='train', log_model=False)
     checkpoint_callback = ModelCheckpoint(
-        dirpath=cmd_args.results_dir, every_n_val_epochs=1, filename="model-snaphot-best-epoch-{epoch}-loss-{val/loss:.2f}-f1-{val/f1:.2f}", monitor='val/f1', mode='max', auto_insert_metric_name=False)
+        dirpath=cmd_args.results_dir, every_n_val_epochs=1, filename="model-snaphot-best-epoch-{epoch}-loss-{val/loss:.2f}-f1-{val/f1:.2f}", monitor='val/loss', mode='min', auto_insert_metric_name=False)
     # Initialize a trainer
     trainer = pl.Trainer(max_epochs=cmd_args.epochs,
                          progress_bar_refresh_rate=1,
