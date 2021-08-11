@@ -1,10 +1,9 @@
 from numpy import true_divide
 from sentence_transformers.util import batch_to_device
 from torch import Tensor
-from torchmetrics.classification.stat_scores import StatScores
 import pytorch_lightning as pl
 from torch import nn, sigmoid, tensor
-from torchmetrics import Accuracy, F1, Recall, Precision, MatthewsCorrcoef
+from torchmetrics import Accuracy, F1, Recall, Precision, MatthewsCorrcoef, StatScores
 from sentence_transformers import SentenceTransformer
 import transformers
 import torch
@@ -48,16 +47,14 @@ class TransformerClassifier(pl.LightningModule):
                                             precision=Precision(
                                                 num_classes=num_classes),
                                             mcc=MatthewsCorrcoef(
-                                                num_classes=2)
+                                                num_classes=2),
                                             ))
-        self.metrics = nn.ModuleDict(dict(_train=deepcopy(shared_metrics), # the `train` and `training` keywords cause an error with nn.ModuleDict
+        self.metrics = nn.ModuleDict(dict(_train=deepcopy(shared_metrics),  # the `train` and `training` keywords cause an error with nn.ModuleDict
                                           val=deepcopy(shared_metrics),
                                           test=deepcopy(shared_metrics)))
 
         self.confusions = nn.ModuleDict(dict(_train=StatScores(num_classes=num_classes),
                                              val=StatScores(num_classes=num_classes), test=StatScores(num_classes=num_classes)))
-        self.class_balance_check = []
-
 
     def forward(self, x):
         features = self.transformer.tokenize(x)
@@ -72,45 +69,52 @@ class TransformerClassifier(pl.LightningModule):
     def _log_metrics(self, step_type: str, predictions: Tensor, labels: Tensor):
         metrics = self.metrics[step_type]
         for name, metric in metrics.items():
+            metric(predictions, labels)
             self.log(f"{step_type}/{name}",
-                     metric(predictions, labels))
-        confusion_metric = self.confusions[step_type]
-        confusion_matrix = confusion_metric(predictions, labels)
-        self.log(f"{step_type}/TP",
-                 confusion_matrix[0], on_epoch=True, on_step=False)
-        self.log(f"{step_type}/FP",
-                 confusion_matrix[1], on_epoch=True, on_step=False)
-        self.log(f"{step_type}/TN",
-                 confusion_matrix[2], on_epoch=True, on_step=False)
-        self.log(f"{step_type}/FN",
-                 confusion_matrix[3], on_epoch=True, on_step=False)
+                     metric, on_epoch=True, on_step=False)
+        self.confusions[step_type](predictions, labels)
+
 
     def _step(self, step_type: str, batch):
         data, labels = batch
         logits = self.forward(data).squeeze(1)
         loss = self.loss(logits, labels.type_as(logits))
-        self.log(f'{step_type}/loss', loss)
-        self.log(f'{step_type}/logits', logits.mean())
+        sync_dist = step_type in ['val', 'test']
+        self.log(f'{step_type}/loss', loss, sync_dist=sync_dist)
+        self.log(f'{step_type}/logits', logits.mean(), sync_dist=sync_dist)
         self._log_metrics(step_type, sigmoid(logits), labels)
-        if step_type == '_train':
-            self.class_balance_check.extend(labels)
         return loss
+
+    def on_train_epoch_end(self) -> None:
+        self.log_confusion_matrix("_train")
+        return super().on_epoch_end()
+
+    def on_validation_epoch_end(self) -> None:
+        self.log_confusion_matrix("val")
+        return super().on_epoch_end()
+
+    def on_test_epoch_end(self) -> None:
+        self.log_confusion_matrix("test")
+        return super().on_epoch_end()
+
+    def log_confusion_matrix(self, step_type):
+        confusion_metric = self.confusions[step_type]
+        TP, FP, TN, FN, _ = confusion_metric.compute()
+        confusion_metric.reset()
+        self.log(f"{step_type}/TP",
+                 TP, on_epoch=True, on_step=False, sync_dist=True)
+        self.log(f"{step_type}/FP",
+                 FP, on_epoch=True, on_step=False, sync_dist=True)
+        self.log(f"{step_type}/TN",
+                 TN, on_epoch=True, on_step=False, sync_dist=True)
+        self.log(f"{step_type}/FN",
+                 FN, on_epoch=True, on_step=False, sync_dist=True)
 
     def training_step(self, batch, batch_idx):
         return self._step("_train", batch)
 
     def validation_step(self, batch, batch_idx):
         return self._step("val", batch)
-
-    def validation_epoch_end(self, outputs) -> None:
-        # if self.global_rank == 0:
-        # print(self.val_confusion.compute())
-        # self.val_confusion.reset()
-
-        print(len([val for val in self.class_balance_check if val == 0]),
-              len([val for val in self.class_balance_check if val == 1]))
-        self.class_balance_check = []
-        return super().validation_epoch_end(outputs)
 
     def test_step(self, batch, batch_idx):
         return self._step("test", batch)

@@ -135,7 +135,7 @@ def main(ctx, **cmd_args):
     trainer.fit(model, dm)
     if rank_zero_only.rank == 0:
         push_file_to_wandb(
-            f"{str(cmd_args.results_dir)}/model-snaphot-latest*.ckpt")
+            f"{str(cmd_args.results_dir)}/*.ckpt")
     if cmd_args.test:
         torch.distributed.destroy_process_group()
         if trainer.global_rank == 0:
