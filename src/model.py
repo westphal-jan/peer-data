@@ -1,4 +1,3 @@
-from numpy import true_divide
 from sentence_transformers.util import batch_to_device
 from torch import Tensor
 import pytorch_lightning as pl
@@ -8,7 +7,6 @@ from sentence_transformers import SentenceTransformer
 import transformers
 import torch
 from copy import deepcopy
-
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 from .helpers import F1Loss
