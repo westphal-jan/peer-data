@@ -49,7 +49,9 @@ def augment(to_augment, augmentation, batch_size, pos_idx):
 
     augmented = []
     for _to_augment in tqdm(batches, position=pos_idx):
-        _augmented = augmentation.augment(_to_augment.tolist())
+        _to_augment = _to_augment.tolist()
+        _to_augment = [" ".join(x.split()[:512]) for x in _to_augment]
+        _augmented = augmentation.augment(_to_augment)
         augmented.extend(_augmented)
     return augmented
 
