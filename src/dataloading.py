@@ -1,6 +1,7 @@
 from typing import List
 import nlpaug.augmenter.word as naw
 import nlpaug.augmenter.sentence as nas
+import nlpaug.flow as naf
 import pytorch_lightning as pl
 from torch.utils import data
 from torch.utils.data.dataloader import DataLoader
@@ -29,46 +30,62 @@ class BasicDataModule(pl.LightningDataModule):
 
     def setup(self, stage):
         self._file_paths = glob.glob(f"{self.data_dirs[0]}/*.json")
-        complete_data = PaperDataset(
-            self._file_paths, dynamic_augmentations=self.dynamic_augmentations)
-        complete_data_without_augs = PaperDataset(
-            self._file_paths, dynamic_augmentations=[])
-        print(len(self._file_paths))
+        with open('./data/train.txt', 'r') as f:
+            self._train_names = f.read().splitlines()
+        with open('./data/val.txt', 'r') as f:
+            self._val_names = f.read().splitlines()
+        with open('./data/test.txt', 'r') as f:
+            self._test_names = f.read().splitlines()
 
-        # Get random index split for train/val/test.
-        idx = list(range(len(self._file_paths)))
-        # Get constant split across runs
-        rnd = np.random.RandomState(42)
-        rnd.shuffle(idx)
-        total_len = len(idx)
-        train_len, val_len = int(0.8*total_len), int(0.1*total_len)
-        train_idx = idx[:train_len]
-        val_idx = idx[train_len:(train_len + val_len)]
-        test_idx = idx[(train_len + val_len):]
+        original_train_paths = [
+            f"./data/original/{file_name}" for file_name in self._train_names]
+        original_val_paths = [
+            f"./data/original/{file_name}" for file_name in self._val_names]
+        original_test_paths = [
+            f"./data/original/{file_name}" for file_name in self._test_names]
 
-        print(
-            f"Perform train/val/test split: train {train_len}, val {val_len}, test {len(test_idx)}")
+        # complete_data = PaperDataset(
+        #     self._file_paths, dynamic_augmentations=self.dynamic_augmentations)
+        # complete_data_without_augs = PaperDataset(
+        #     self._file_paths, dynamic_augmentations=[])
+        # print(len(self._file_paths))
 
-        self.train_set, self.val_set, self.test_set = Subset(complete_data, train_idx), Subset(
-            complete_data_without_augs, val_idx), Subset(complete_data_without_augs, test_idx)
-        print(self.train_set.dataset.dynamic_augmentations,
-              self.val_set.dataset.dynamic_augmentations)
+        # # Get random index split for train/val/test.
+        # idx = list(range(len(self._file_paths)))
+        # # Get constant split across runs
+        # rnd = np.random.RandomState(42)
+        # rnd.shuffle(idx)
+        # total_len = len(idx)
+        # train_len, val_len = int(0.7*total_len), int(0.15*total_len)
+        # train_idx = idx[:train_len]
+        # val_idx = idx[train_len:(train_len + val_len)]
+        # test_idx = idx[(train_len + val_len):]
+
+        # print(
+        #     f"Perform train/val/test split: train {train_len}, val {val_len}, test {len(test_idx)}")
+
+        self.train_set = PaperDataset(original_train_paths, dynamic_augmentations=self.dynamic_augmentations)
+        self.val_set = PaperDataset(original_val_paths)
+        self.test_set = PaperDataset(original_test_paths)
 
         # We need to be careful and only train on augmentations of abstracts that are in the train set.
         for aug in self.augmentation_datasets:
             print("Using augmentation dataset", aug)
-            backtranslation_paths = glob.glob(
-                f"./data/{aug}/*.json")
+            # backtranslation_paths = glob.glob(
+            #     f"./data/{aug}/*.json")
+            augmentation_paths = [
+                f"./data/{aug}/{train_file_name}" for train_file_name in self._train_names]
             # print(backtranslation_paths[:10], self._file_paths[:10])
-            aug_data = PaperDataset(
-                backtranslation_paths, dynamic_augmentations=self.dynamic_augmentations)
-            aug_train_set = Subset(aug_data, train_idx)
+            aug_train_set = PaperDataset(
+                augmentation_paths, dynamic_augmentations=self.dynamic_augmentations)
+            # aug_train_set = Subset(aug_data, train_idx)
             self.train_set = ConcatDataset([self.train_set, aug_train_set])
-
+        print("Original files distributions: Train:", len(original_train_paths), "val", len(original_val_paths), "test", len(original_test_paths))
         print("Train set len", len(self.train_set))
 
     def train_dataloader(self) -> DataLoader:
-        labels = [label for abstract, label in self.train_set]
+        labels = [label for abstract, label in tqdm(
+            self.train_set, leave=False, desc="preparing train set...")]
 
         # Sanity check
         # for i, (text, label) in enumerate(self.train_set):
@@ -79,9 +96,6 @@ class BasicDataModule(pl.LightningDataModule):
             # Do oversampling of minority class
             number_rejected, number_accepted = np.bincount(labels)
             print("Accepted:", number_accepted, "Rejected:", number_rejected)
-
-            sampler = None
-
             if number_rejected > number_accepted:
                 class_weights = (1, number_rejected / number_accepted)
                 minority_class = "Accepted papers"
@@ -97,13 +111,13 @@ class BasicDataModule(pl.LightningDataModule):
 
             if self.ddp:
                 sampler = DistributedSamplerWrapper(sampler)
-        return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.workers, sampler=sampler, pin_memory=True)
+        return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.workers, sampler=sampler)
 
     def val_dataloader(self) -> DataLoader:
-        return DataLoader(self.val_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
+        return DataLoader(self.val_set, batch_size=self.batch_size, num_workers=self.workers)
 
     def test_dataloader(self) -> DataLoader:
-        return DataLoader(self.test_set, batch_size=self.batch_size, num_workers=self.workers, pin_memory=True)
+        return DataLoader(self.test_set, batch_size=self.batch_size, num_workers=self.workers)
 
 
 # # Synonym Augmenter
@@ -132,7 +146,7 @@ class PaperDataset(Dataset):
     def _init_augmentations(self):
         print("Initializing augmentation models....")
         self.augmentation_map = {
-            'wordnet': naw.SynonymAug(aug_src='wordnet', aug_min=5, aug_max=50, aug_p=0.1),
+            'wordnet': naw.SynonymAug(aug_src='wordnet', aug_min=5, aug_p=0.5),
             # 'insert-glove': naw.WordEmbsAug(model_type='glove', model_path="./embeddings/glove.6B.50d.txt", action='insert', aug_max=None, aug_p=0.1),
             # 'substitute-glove': naw.WordEmbsAug(model_type='glove',  model_path="./embeddings/glove.6B.50d.txt", action='substitute', aug_max=None, aug_p=0.1),
             # 'insert-word2vec': naw.WordEmbsAug(model_type='word2vec', model_path="./embeddings/GoogleNews-vectors-negative300.bin", action='insert', aug_max=None, aug_p=0.1),
@@ -145,7 +159,8 @@ class PaperDataset(Dataset):
         for aug_name in self.dynamic_augmentations:
             augmenter = self.augmentation_map.get(aug_name)
             try:
-                text = augmenter.augment(text)
+                if random.random() > 0.5:
+                    text = augmenter.augment(text)
             except Exception as e:
                 pass
         # fix weird tokenazation, do we want to do this?

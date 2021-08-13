@@ -10,11 +10,20 @@ import multiprocessing as mp
 import numpy as np
 import math
 
-def process_chunk(paths, gpu_idx, pos_idx, augmentation_name, batch_size):
+def sentence_gpt_truncate(abstracts):
+    trunc_abstracts = []
+    for abstract in abstracts:
+        split_sen = abstract.split('.')
+        if len(split_sen) >= 3:
+            trunc_abstracts.append(".".join(split_sen[:3]))
+            continue
+        else:
+            trunc_abstracts.append(abstract)
+    return trunc_abstracts
+
+def process_chunk(paths, gpu_idx, pos_idx, augmentation_name, out_dir, batch_size):
     augmentation = get_augment(augmentation_name, gpu_idx, batch_size)
     batch = []
-    out_dir = f'./data/{augmentation_name}/'
-    os.makedirs(out_dir, exist_ok=True)
     for path in tqdm(paths, position=pos_idx):
         filename = path.split('/')[-1]
         if os.path.exists(out_dir + filename):
@@ -25,6 +34,8 @@ def process_chunk(paths, gpu_idx, pos_idx, augmentation_name, batch_size):
             batch.append((paper_json, filename))
         if len(batch) == batch_size:
             abstracts = [paper["review"]["abstract"] for paper, _ in batch]
+            if augmentation_name == 'sentence-gpt':
+                abstracts = sentence_gpt_truncate(abstracts)
 
             augmented_abstracts = augmentation.augment(abstracts)
 
@@ -35,6 +46,9 @@ def process_chunk(paths, gpu_idx, pos_idx, augmentation_name, batch_size):
             batch = []
     if len(batch) > 0:
         abstracts = [paper["review"]["abstract"] for paper, _ in batch]
+        if augmentation_name == 'sentence-gpt':
+            abstracts = sentence_gpt_truncate(abstracts)
+
         augmented_abstracts = augmentation.augment(abstracts)
         for i, (paper, filename) in enumerate(batch):
             paper['review']['abstract'] = augmented_abstracts[i]
@@ -43,14 +57,13 @@ def process_chunk(paths, gpu_idx, pos_idx, augmentation_name, batch_size):
 
 def augment(to_augment, augmentation, batch_size, pos_idx):
     num_batches = math.ceil(len(to_augment) / batch_size)
-    print("Num batches:", num_batches)
     batches = np.array_split(to_augment, num_batches)
-    print(len(batches))
 
     augmented = []
     for _to_augment in tqdm(batches, position=pos_idx):
         _to_augment = _to_augment.tolist()
-        _to_augment = [" ".join(x.split()[:512]) for x in _to_augment]
+        # Use to reduced processed data
+        # _to_augment = [" ".join(x.split()[:512]) for x in _to_augment]
         _augmented = augmentation.augment(_to_augment)
         augmented.extend(_augmented)
     return augmented
@@ -75,28 +88,6 @@ def section_process_chunk(paths, gpu_idx, pos_idx, augmentation_name, out_dir, b
         with open(out_dir + filename, 'w') as f:
             json.dump(submission, f)
 
-    # flattened_sections = np.hstack(sections).tolist()
-    # # flattened_sections = [" ".join(s.split(" ")[:400]) for s in flattened_sections]
-    # print(len(flattened_sections))
-    # num_sections = list(map(len, sections))
-    # idx = np.cumsum(num_sections)
-
-    # augmented = augment(flattened_sections, augmentation, batch_size, gpu_idx)
-    # augmented_sections = np.split(augmented, idx)
-    # augmented_sections = [i.tolist() for i in augmented_sections if len(i)]
-    
-    # for path, submission, aug_sections in zip(paths, submissions, augmented_sections):
-    #     _sections = submission["pdf"]["metadata"]["sections"]
-    #     assert len(_sections) == len(aug_sections)
-    #     for i in range(len(_sections)):
-    #         _sections[i]["text"] = aug_sections[i]
-    #     submission["pdf"]["metadata"]["sections"] = _sections
-
-    #     filename = path.split("/")[-1]
-    #     with open(out_dir + filename, 'w') as f:
-    #         json.dump(submission, f)
-
-
 def get_augment(augmentation_name, gpu_idx, batch_size):
     extra_kwargs = dict(batch_size=batch_size, device=f"cuda:{gpu_idx}")
     if augmentation_name == "substitute-distilbert":
@@ -107,6 +98,11 @@ def get_augment(augmentation_name, gpu_idx, batch_size):
         return naw.ContextualWordEmbsAug(model_path='distilbert-base-uncased', aug_p=0.1, aug_max=None, action='insert', **extra_kwargs)
     if augmentation_name == "hyper-insert-distilbert":
         return naw.ContextualWordEmbsAug(model_path='distilbert-base-uncased', aug_p=0.3, aug_max=None, action='insert', **extra_kwargs)
+    if augmentation_name == "substitute-glove":
+        return naw.WordEmbsAug(model_type='glove', model_path="./embeddings/glove.6B.50d.txt", action='substitute', aug_max=None, aug_p=0.5)
+    if augmentation_name == "insert-glove":
+        return naw.WordEmbsAug(model_type='glove',  model_path="./embeddings/glove.6B.50d.txt",
+                               action='insert', aug_max=None, aug_p=0.5)
     if augmentation_name == "sentence-gpt":
         return nas.ContextualWordEmbsForSentenceAug(model_path='distilgpt2', max_length=512, **extra_kwargs)
     if augmentation_name == "back-translations":
@@ -127,8 +123,8 @@ def filter_by_outcome(file_paths, outcome):
                 filtered_paths.append(file_path)
     return filtered_paths
 
-def chunker_list(seq, size):
-    return list((seq[i::size] for i in range(size)))
+def split_list_into_chunks(seq, num_chunks):
+    return list((seq[i::num_chunks] for i in range(num_chunks)))
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------
 # Note that in order for nlpaug to work truncation needs to be turned on in the backtranslation model as our texts are rather long.
@@ -148,7 +144,8 @@ def chunker_list(seq, size):
 @click.option('--filter-outcome', help="Filter paper by there acceptance state. True:Accepted, False:Rejected, Default:Both", default=None, type=bool)
 @click.option('--filter-file-path', default=None, type=str)
 @click.option('--reuse', default=True, type=bool)
-def main(ctx, batch_size, gpus, augmentation, appendix, filter_outcome, filter_file_path, reuse):
+@click.option('--sections', help="Set to augment sections otherwise augment abstract", is_flag=True)
+def main(ctx, batch_size, gpus, augmentation, appendix, filter_outcome, filter_file_path, reuse, sections):
     gpu_idxs = [int(gpu) for gpu in gpus.split(',')]
 
     paths = glob.glob(f"./data/original/*.json")
@@ -183,10 +180,18 @@ def main(ctx, batch_size, gpus, augmentation, appendix, filter_outcome, filter_f
         print("No more files to augment")
         return
 
-    split_paths = chunker_list(paths, len(gpu_idxs))
+    split_paths = split_list_into_chunks(paths, len(gpu_idxs))
     d_len = len(split_paths)
+
+    if sections:
+        print("Augmenting sections")
+        func = section_process_chunk
+    else:
+        print("Augmenting abstracts")
+        func = process_chunk
+    
     with mp.Pool(len(gpu_idxs)) as pool:
-        pool.starmap(section_process_chunk, zip(split_paths, gpu_idxs, list(range(len(gpu_idxs))), [
+        pool.starmap(func, zip(split_paths, gpu_idxs, list(range(len(gpu_idxs))), [
                      augmentation]*d_len, [out_dir]*d_len, [batch_size]*d_len))
 
         # print(abstract, '\n\n', backtrans)
